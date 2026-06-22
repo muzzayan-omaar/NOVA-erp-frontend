@@ -5,6 +5,7 @@ import useAuthStore from "../store/useAuthStore";
 import { ShoppingCart, LogOut, Search, X } from "lucide-react";
 import toast from "react-hot-toast";
 import ReceiptModal from "../components/pos/ReceiptModal";
+import { Loader2 } from "lucide-react";
 
 export default function POS() {
   const [products, setProducts] = useState([]);
@@ -14,37 +15,55 @@ export default function POS() {
   const [showReceipt, setShowReceipt] = useState(false);
   const [lastSale, setLastSale] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState("CASH");
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [dailySales, setDailySales] = useState(0);
+  const [dailyStats, setDailyStats] = useState({
+  totalSales: 0,
+  transactions: 0,
+});
 
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
 
+  
+  useEffect(() => {
+  fetchTodayStats();
+}, []);
+const fetchTodayStats = async () => {
+  try {
+    const res = await api.get("/sales/today-stats");
+    setDailyStats(res.data);
+  } catch (err) {
+    console.error(err);
+  }
+};
   // Fetch Products
   useEffect(() => {
     fetchProducts();
   }, []);
 
   // Keyboard Shortcuts
-useEffect(() => {
-  const handleKeyDown = (e) => {
-    if (e.key === "Escape") {
-      setCart([]);
-    }
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        setCart([]);
+      }
 
-    // Ctrl/Cmd + K = Focus Search
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
-      e.preventDefault();
-      document.querySelector('input[placeholder*="Search"]').focus();
-    }
+      // Ctrl/Cmd + K = Focus Search
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        document.querySelector('input[placeholder*="Search"]').focus();
+      }
 
-    // Ctrl/Cmd + Enter = Checkout
-    if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && cart.length > 0) {
-      handleCheckout();
-    }
-  };
+      // Ctrl/Cmd + Enter = Checkout
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && cart.length > 0) {
+        handleCheckout();
+      }
+    };
 
-  window.addEventListener("keydown", handleKeyDown);
-  return () => window.removeEventListener("keydown", handleKeyDown);
-}, [cart]);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [cart]);
 
   const fetchProducts = async () => {
     try {
@@ -83,11 +102,15 @@ useEffect(() => {
     ));
   };
 
+ 
   const total = cart.reduce((sum, item) => sum + item.sellingPrice * item.qty, 0);
-
+   const vatIncluded = total * (18 / 118);
   // Checkout
   const handleCheckout = async () => {
-  if (cart.length === 0) return;
+ 
+  if (cart.length === 0 || checkoutLoading) return;
+
+  setCheckoutLoading(true);
 
   try {
     const payload = {
@@ -108,13 +131,19 @@ useEffect(() => {
     });
 
     setShowReceipt(true);
-    setCart([]); 
+    setCart([]);
+
     toast.success(`Sale completed via ${paymentMethod}`);
 
-    await fetchProducts(); // Refresh stock
+    
+
+    await fetchProducts();
+    await fetchTodayStats();
   } catch (err) {
     console.error(err);
     toast.error(err.response?.data?.message || "Checkout failed");
+  } finally {
+    setCheckoutLoading(false);
   }
 };
 
@@ -156,11 +185,15 @@ useEffect(() => {
         <div className="flex items-center gap-8">
             <div>
             <span className="text-slate-500">Today's Sales:</span>
-            <span className="font-bold ml-2 text-green-600">UGX 245,000</span>
+            <span className="font-bold ml-2 text-green-600">
+              UGX {dailyStats.totalSales.toLocaleString()}
+            </span>
             </div>
             <div>
             <span className="text-slate-500">Transactions:</span>
-            <span className="font-bold ml-2">12</span>
+            <span className="font-bold ml-2">
+              {dailyStats.transactions}
+            </span>
             </div>
         </div>
 
@@ -248,10 +281,17 @@ useEffect(() => {
 
           {/* Total & Checkout */}
           <div className="p-6 border-t bg-slate-50 rounded-b-3xl">
-            <div className="flex justify-between text-2xl font-bold mb-6">
-              <span>Total</span>
+            <div className="mb-6">
+            <div className="flex justify-between text-sm text-slate-500">
+              <span>VAT Included (18%)</span>
+              <span>UGX {vatIncluded.toLocaleString()}</span>
+            </div>
+
+            <div className="flex justify-between text-2xl font-bold mt-2">
+              <span>Total Due</span>
               <span>UGX {total.toLocaleString()}</span>
             </div>
+          </div>
 
             {/* Payment Methods */}
             <div className="mb-6">
@@ -275,11 +315,22 @@ useEffect(() => {
 
             {/* Checkout Button */}
             <button
-            onClick={handleCheckout}
-            disabled={cart.length === 0}
-            className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white py-5 rounded-2xl font-bold text-lg transition"
+              onClick={handleCheckout}
+              disabled={cart.length === 0 || checkoutLoading}
+              className={`w-full text-white py-5 rounded-2xl font-bold text-lg transition flex items-center justify-center gap-2 ${
+                checkoutLoading
+                  ? "bg-green-400 cursor-not-allowed"
+                  : "bg-green-600 hover:bg-green-700"
+              } disabled:bg-gray-400`}
             >
-            COMPLETE SALE — UGX {total.toLocaleString()}
+              {checkoutLoading ? (
+                <>
+                  <Loader2 className="animate-spin" size={20} />
+                  Processing Sale...
+                </>
+              ) : (
+                <>COMPLETE SALE — UGX {total.toLocaleString()}</>
+              )}
             </button>
           </div>
         </div>

@@ -1,18 +1,27 @@
 import { Routes, Route } from "react-router-dom";
 
-import Login from "./pages/Login";
 import POS from "./pages/POS";
+import Login from "./pages/Login";
+
 import AdminLayout from "./pages/admin/AdminLayout";
+
+/* MODULES */
+import DashboardModule from "./admin/modules/DashboardModule";
+import ProductsModule from "./admin/modules/ProductsModule";
+import InventoryModule from "./admin/modules/InventoryModule";
+import SalesModule from "./admin/modules/SalesModule";
+import PaymentsModule from "./admin/modules/PaymentsModule";
+import UsersModule from "./admin/modules/UsersModule";
 
 import AuthGate from "./guards/AuthGate";
 
 function App() {
   return (
     <Routes>
-      {/* Public Routes */}
+      {/* Public */}
       <Route path="/login" element={<Login />} />
 
-      {/* Protected Routes */}
+      {/* POS */}
       <Route
         path="/"
         element={
@@ -22,15 +31,22 @@ function App() {
         }
       />
 
-      {/* Admin Routes */}
+      {/* Admin Area */}
       <Route
-        path="/admin/*"
+        path="/admin"
         element={
           <AuthGate>
             <AdminLayout />
           </AuthGate>
         }
-      />
+      >
+        <Route index element={<DashboardModule />} />
+        <Route path="products" element={<ProductsModule />} />
+        <Route path="inventory" element={<InventoryModule />} />
+        <Route path="sales" element={<SalesModule />} />
+        <Route path="payments" element={<PaymentsModule />} />
+        <Route path="users" element={<UsersModule />} />
+      </Route>
     </Routes>
   );
 }

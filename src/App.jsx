@@ -12,6 +12,9 @@ import InventoryModule from "./admin/modules/InventoryModule";
 import SalesModule from "./admin/modules/SalesModule";
 import PaymentsModule from "./admin/modules/PaymentsModule";
 import UsersModule from "./admin/modules/UsersModule";
+import CustomersModule from "./admin/modules/CustomersModule";
+import ExpensesModule from "./admin/modules/ExpensesModule";
+import SuppliersModule from "./admin/modules/SuppliersModule";
 
 import AuthGate from "./guards/AuthGate";
 
@@ -46,6 +49,9 @@ function App() {
         <Route path="sales" element={<SalesModule />} />
         <Route path="payments" element={<PaymentsModule />} />
         <Route path="users" element={<UsersModule />} />
+        <Route path="customers" element={<CustomersModule />}/>
+        <Route path="expenses" element={<ExpensesModule />}/>
+        <Route path="suppliers" element={<SuppliersModule />}/>
       </Route>
     </Routes>
   );

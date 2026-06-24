@@ -1,5 +1,5 @@
 import { useNavigate, Outlet, useLocation } from "react-router-dom";
-import { LayoutDashboard, Users, Package, ShoppingCart, CreditCard, FileText, Receipt, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, Package, ShoppingCart, CreditCard, FileText, Receipt, LogOut, Boxes, Truck, UserCog, } from "lucide-react";
 import useAuthStore from "../../store/useAuthStore";
 
 export default function AdminLayout() {
@@ -7,16 +7,17 @@ export default function AdminLayout() {
   const location = useLocation();
   const { user, logout } = useAuthStore();
 
-  const menuItems = [
-    { title: "Dashboard", icon: LayoutDashboard, path: "/admin" },
-    { title: "Products", icon: Package, path: "/admin/products" },
-    { title: "Sales", icon: ShoppingCart, path: "/admin/sales" },
-    { title: "Inventory", icon: Package, path: "/admin/inventory" },
-    { title: "Users", icon: Users, path: "/admin/users" },
-    { title: "Payments", icon: CreditCard, path: "/admin/payments" },
-    { title: "Receipts", icon: Receipt, path: "/admin/receipts" },
-    { title: "Reports", icon: FileText, path: "/admin/reports" },
-  ];
+  const menu = [
+  { title: "Dashboard", icon: LayoutDashboard, path: "/admin" },
+  { title: "Products", icon: Package, path: "/admin/products" },
+  { title: "Inventory", icon: Boxes, path: "/admin/inventory" },
+  { title: "Sales", icon: ShoppingCart, path: "/admin/sales" },
+  { title: "Payments", icon: CreditCard, path: "/admin/payments" },
+  { title: "Customers", icon: Users, path: "/admin/customers" },
+  { title: "Suppliers", icon: Truck, path: "/admin/suppliers" },
+  { title: "Users", icon: UserCog, path: "/admin/users" },
+  { title: "Reports", icon: FileText, path: "/admin/reports" },
+];
 
   return (
     <div className="flex h-screen bg-slate-100">
@@ -28,7 +29,7 @@ export default function AdminLayout() {
         </div>
 
         <div className="flex-1 p-4 space-y-2 overflow-y-auto">
-          {menuItems.map((item) => {
+          {menu.map((item) => {
             const isActive = location.pathname === item.path;
             return (
               <button

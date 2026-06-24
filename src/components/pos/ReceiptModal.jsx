@@ -6,10 +6,11 @@ export default function ReceiptModal({ open, onClose, sale }) {
   const { 
     items = [], 
     totalAmount = 0, 
+    subtotal = 0,
+    vatAmount = 0,
     paymentMethod = "CASH", 
     createdAt,
-    subtotal,
-    vatAmount 
+    fiscalReceiptId 
   } = sale;
 
   const date = createdAt ? new Date(createdAt) : new Date();
@@ -32,8 +33,13 @@ export default function ReceiptModal({ open, onClose, sale }) {
             {date.toLocaleTimeString('en-UG')}
           </div>
 
+          {/* Fiscal Receipt ID */}
+          <div className="text-center bg-slate-100 py-2 rounded-xl mb-6 text-sm font-medium">
+            Fiscal Receipt ID: <span className="font-mono">{fiscalReceiptId || 'NOVA-' + Date.now()}</span>
+          </div>
+
           {/* Items */}
-          <div className="space-y-3 max-h-[260px] overflow-y-auto pr-2">
+          <div className="space-y-3 max-h-[240px] overflow-y-auto pr-2">
             {items.map((item, index) => (
               <div key={index} className="flex justify-between text-sm">
                 <div>
@@ -52,17 +58,15 @@ export default function ReceiptModal({ open, onClose, sale }) {
           {/* Tax Breakdown */}
           <div className="space-y-1.5 text-sm">
             <div className="flex justify-between">
-              <span>Net Amount</span>
+              <span>Subtotal (Excl. VAT)</span>
               <span>UGX {subtotal.toLocaleString()}</span>
             </div>
-
             <div className="flex justify-between">
-              <span>VAT Included (18%)</span>
+              <span>VAT (18%)</span>
               <span>UGX {vatAmount.toLocaleString()}</span>
             </div>
-
             <div className="flex justify-between font-bold text-lg border-t pt-3 mt-2">
-              <span>Total Paid</span>
+              <span>Total Amount</span>
               <span>UGX {totalAmount.toLocaleString()}</span>
             </div>
           </div>
@@ -71,7 +75,7 @@ export default function ReceiptModal({ open, onClose, sale }) {
             Payment: <span className="capitalize font-medium">{paymentMethod.replace('_', ' ')}</span>
           </div>
 
-          {/* EFRIS QR Placeholder */}
+          {/* EFRIS QR */}
           <div className="mt-8 border border-dashed border-slate-300 rounded-2xl p-6 text-center">
             <div className="mx-auto w-28 h-28 border-2 border-slate-300 rounded-xl flex items-center justify-center text-xs text-slate-400 mb-3">
               [ EFRIS QR CODE ]

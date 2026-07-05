@@ -4,13 +4,14 @@ import useAuthStore from "../store/useAuthStore";
 
 export default function AuthGate({ children }) {
   const navigate = useNavigate();
-  const { user, loadAuth } = useAuthStore();
+  const { user, hydrate } = useAuthStore();
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    loadAuth();
-    setChecking(false);
-  }, []);
+  hydrate();
+  setChecking(false);
+}, [hydrate]);
+  
 
   useEffect(() => {
     if (!checking && !user) {

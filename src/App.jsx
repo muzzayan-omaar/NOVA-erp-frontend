@@ -1,5 +1,5 @@
 import { Routes, Route } from "react-router-dom";
-
+import { useEffect } from "react";
 import POS from "./pages/POS";
 import Login from "./pages/Login";
 
@@ -15,11 +15,19 @@ import UsersModule from "./admin/modules/UsersModule";
 import CustomersModule from "./admin/modules/CustomersModule";
 import ExpensesModule from "./admin/modules/ExpensesModule";
 import SuppliersModule from "./admin/modules/SuppliersModule";
+import PayrollModule from "./admin/modules/PayrollModule";
 
 import AuthGate from "./guards/AuthGate";
+import useAuthStore from "./store/useAuthStore";
 
-function App() {
-  return (
+export default function App() {
+  const hydrate = useAuthStore((s) => s.hydrate);
+
+  useEffect(() => {
+    hydrate();
+  }, []);
+
+   return (
     <Routes>
       {/* Public */}
       <Route path="/login" element={<Login />} />
@@ -52,9 +60,8 @@ function App() {
         <Route path="customers" element={<CustomersModule />}/>
         <Route path="expenses" element={<ExpensesModule />}/>
         <Route path="suppliers" element={<SuppliersModule />}/>
+        <Route path="payroll" element={<PayrollModule />}/>
       </Route>
     </Routes>
   );
 }
-
-export default App;

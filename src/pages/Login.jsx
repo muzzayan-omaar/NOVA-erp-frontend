@@ -8,6 +8,7 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [companyId, setCompanyId] = useState("");
 
   const navigate = useNavigate();
   const { setAuth } = useAuthStore();
@@ -17,7 +18,7 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const res = await api.post("/auth/login", { email, password });
+      const res = await api.post("/auth/login", { companyId, email, password });
 
       const { token, user } = res.data;
 
@@ -46,6 +47,15 @@ export default function Login() {
         <p className="text-center text-slate-500 mb-8">Sign in to your account</p>
 
         <form onSubmit={handleLogin} className="space-y-6">
+          <input
+            type="text"
+            placeholder="Company ID"
+            className="w-full p-4 border border-slate-300 rounded-xl focus:outline-none focus:border-blue-500"
+            value={companyId}
+            onChange={(e) => setCompanyId(e.target.value)}
+            required
+          />
+
           <input
             type="email"
             placeholder="Email Address"

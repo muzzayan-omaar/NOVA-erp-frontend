@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import useAuthStore from "../store/useAuthStore";
-import { ShoppingCart, LogOut, Search, X } from "lucide-react";
+import { ShoppingCart, LogOut, Search, X, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import ReceiptModal from "../components/pos/ReceiptModal";
-import { Loader2 } from "lucide-react";
+import BarcodeScanner from "../components/pos/BarcodeScanner";
 
 export default function POS() {
   const [products, setProducts] = useState([]);
@@ -16,54 +16,15 @@ export default function POS() {
   const [lastSale, setLastSale] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState("CASH");
   const [checkoutLoading, setCheckoutLoading] = useState(false);
-  const [dailySales, setDailySales] = useState(0);
-  const [dailyStats, setDailyStats] = useState({
-  totalSales: 0,
-  transactions: 0,
-});
+  const [showScanner, setShowScanner] = useState(false);
 
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
 
-  
-  useEffect(() => {
-  fetchTodayStats();
-}, []);
-const fetchTodayStats = async () => {
-  try {
-    const res = await api.get("/sales/today-stats");
-    setDailyStats(res.data);
-  } catch (err) {
-    console.error(err);
-  }
-};
   // Fetch Products
   useEffect(() => {
     fetchProducts();
   }, []);
-
-  // Keyboard Shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === "Escape") {
-        setCart([]);
-      }
-
-      // Ctrl/Cmd + K = Focus Search
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        document.querySelector('input[placeholder*="Search"]').focus();
-      }
-
-      // Ctrl/Cmd + Enter = Checkout
-      if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && cart.length > 0) {
-        handleCheckout();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [cart]);
 
   const fetchProducts = async () => {
     try {
@@ -76,6 +37,23 @@ const fetchTodayStats = async () => {
       setLoading(false);
     }
   };
+
+  // Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") setCart([]);
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        document.querySelector('input[placeholder*="Search"]').focus();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && cart.length > 0) {
+        handleCheckout();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [cart]);
 
   // Add to Cart
   const addToCart = (product) => {
@@ -90,10 +68,7 @@ const fetchTodayStats = async () => {
     toast.success(`Added ${product.name}`);
   };
 
-  // Remove from Cart
-  const removeFromCart = (id) => {
-    setCart(cart.filter(item => item.id !== id));
-  };
+  const removeFromCart = (id) => setCart(cart.filter(item => item.id !== id));
 
   const updateQuantity = (id, newQty) => {
     if (newQty < 1) return;
@@ -102,54 +77,48 @@ const fetchTodayStats = async () => {
     ));
   };
 
- 
   const total = cart.reduce((sum, item) => sum + item.sellingPrice * item.qty, 0);
-   const vatIncluded = total * (18 / 118);
+
   // Checkout
   const handleCheckout = async () => {
- 
-  if (cart.length === 0 || checkoutLoading) return;
+    if (cart.length === 0 || checkoutLoading) return;
 
-  setCheckoutLoading(true);
+    setCheckoutLoading(true);
 
-  try {
-    const payload = {
-      items: cart.map(item => ({
-        productId: item.id,
-        quantity: item.qty
-      })),
-      paymentMethod,
-      discount: 0
-    };
+    try {
+      const payload = {
+        items: cart.map(item => ({
+          productId: item.id,
+          quantity: item.qty
+        })),
+        paymentMethod,
+        discount: 0
+      };
 
-    const res = await api.post("/sales", payload);
+      const res = await api.post("/sales", payload);
 
-    setLastSale({
-      ...res.data,
-      items: cart,
-      paymentMethod
-    });
+      setLastSale({
+        ...res.data,
+        items: cart,
+        paymentMethod
+      });
 
-    setShowReceipt(true);
-    setCart([]);
+      setShowReceipt(true);
+      setCart([]);
+      toast.success(`Sale completed via ${paymentMethod}`);
 
-    toast.success(`Sale completed via ${paymentMethod}`);
+      await fetchProducts();
+    } catch (err) {
+      console.error(err);
+      toast.error(err.response?.data?.message || "Checkout failed");
+    } finally {
+      setCheckoutLoading(false);
+    }
+  };
 
-    
-
-    await fetchProducts();
-    await fetchTodayStats();
-  } catch (err) {
-    console.error(err);
-    toast.error(err.response?.data?.message || "Checkout failed");
-  } finally {
-    setCheckoutLoading(false);
-  }
-};
-
-  // Filter products
   const filteredProducts = products.filter(p =>
-    p.name.toLowerCase().includes(searchTerm.toLowerCase())
+    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (p.barcode && p.barcode.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
@@ -181,40 +150,43 @@ const fetchTodayStats = async () => {
       </div>
 
       {/* Daily Summary Bar */}
-        <div className="bg-white border-b px-6 py-3 flex items-center justify-between text-sm">
+      <div className="bg-white border-b px-6 py-3 flex items-center justify-between text-sm">
         <div className="flex items-center gap-8">
-            <div>
+          <div>
             <span className="text-slate-500">Today's Sales:</span>
-            <span className="font-bold ml-2 text-green-600">
-              UGX {dailyStats.totalSales.toLocaleString()}
-            </span>
-            </div>
-            <div>
+            <span className="font-bold ml-2 text-green-600">UGX 245,000</span>
+          </div>
+          <div>
             <span className="text-slate-500">Transactions:</span>
-            <span className="font-bold ml-2">
-              {dailyStats.transactions}
-            </span>
-            </div>
+            <span className="font-bold ml-2">12</span>
+          </div>
         </div>
-
         <div className="text-slate-500 text-xs">
-            {new Date().toLocaleDateString('en-UG', { weekday: 'long', month: 'long', day: 'numeric' })}
+          {new Date().toLocaleDateString('en-UG', { weekday: 'long', month: 'long', day: 'numeric' })}
         </div>
-        </div>
+      </div>
 
       <div className="flex flex-1 overflow-hidden p-6 gap-6">
         {/* Products Section */}
         <div className="flex-1 flex flex-col bg-white rounded-3xl shadow">
           <div className="p-6 border-b">
-            <div className="relative">
-              <Search className="absolute left-4 top-4 text-slate-400" size={20} />
-              <input
-                type="text"
-                placeholder="Search product or scan barcode..."
-                className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-blue-500 text-lg"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+            <div className="flex gap-4">
+              <div className="flex-1 relative">
+                <Search className="absolute left-4 top-4 text-slate-400" size={20} />
+                <input
+                  type="text"
+                  placeholder="Search product or scan barcode..."
+                  className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-blue-500 text-lg"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <button
+                onClick={() => setShowScanner(true)}
+                className="bg-blue-600 text-white px-6 py-4 rounded-2xl flex items-center gap-2 hover:bg-blue-700 whitespace-nowrap"
+              >
+                Scan Barcode
+              </button>
             </div>
           </div>
 
@@ -279,69 +251,79 @@ const fetchTodayStats = async () => {
             )}
           </div>
 
-          {/* Total & Checkout */}
+          {/* Checkout Area */}
           <div className="p-6 border-t bg-slate-50 rounded-b-3xl">
             <div className="mb-6">
-            <div className="flex justify-between text-sm text-slate-500">
-              <span>VAT Included (18%)</span>
-              <span>UGX {vatIncluded.toLocaleString()}</span>
+              <div className="flex justify-between text-sm text-slate-500">
+                <span>VAT Included (18%)</span>
+                <span>UGX {(total * 0.18).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-2xl font-bold mt-2">
+                <span>Total Due</span>
+                <span>UGX {total.toLocaleString()}</span>
+              </div>
             </div>
-
-            <div className="flex justify-between text-2xl font-bold mt-2">
-              <span>Total Due</span>
-              <span>UGX {total.toLocaleString()}</span>
-            </div>
-          </div>
 
             {/* Payment Methods */}
             <div className="mb-6">
-            <p className="text-sm text-slate-500 mb-3">Payment Method</p>
-            <div className="grid grid-cols-3 gap-3">
+              <p className="text-sm text-slate-500 mb-3">Payment Method</p>
+              <div className="grid grid-cols-3 gap-3">
                 {["CASH", "MOBILE_MONEY", "CARD"].map((method) => (
-                <button
+                  <button
                     key={method}
                     onClick={() => setPaymentMethod(method)}
                     className={`py-3 rounded-2xl text-sm font-medium transition ${
-                    paymentMethod === method 
+                      paymentMethod === method 
                         ? "bg-blue-600 text-white" 
                         : "bg-slate-100 hover:bg-slate-200"
                     }`}
-                >
+                  >
                     {method === "MOBILE_MONEY" ? "Mobile Money" : method}
-                </button>
+                  </button>
                 ))}
-            </div>
+              </div>
             </div>
 
-            {/* Checkout Button */}
             <button
               onClick={handleCheckout}
               disabled={cart.length === 0 || checkoutLoading}
-              className={`w-full text-white py-5 rounded-2xl font-bold text-lg transition flex items-center justify-center gap-2 ${
-                checkoutLoading
-                  ? "bg-green-400 cursor-not-allowed"
-                  : "bg-green-600 hover:bg-green-700"
-              } disabled:bg-gray-400`}
+              className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white py-5 rounded-2xl font-bold text-lg transition flex items-center justify-center gap-2"
             >
               {checkoutLoading ? (
                 <>
                   <Loader2 className="animate-spin" size={20} />
-                  Processing Sale...
+                  Processing...
                 </>
               ) : (
-                <>COMPLETE SALE — UGX {total.toLocaleString()}</>
+                `COMPLETE SALE — UGX ${total.toLocaleString()}`
               )}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Receipt Modal */}
+      {/* Modals */}
       <ReceiptModal
         open={showReceipt}
         onClose={() => setShowReceipt(false)}
         sale={lastSale}
       />
+
+      {showScanner && (
+        <BarcodeScanner
+          onScan={(barcode) => {
+            const product = products.find(p => p.barcode === barcode);
+            if (product) {
+              addToCart(product);
+              toast.success(`Added ${product.name}`);
+            } else {
+              toast.error("Product not found for barcode");
+            }
+            setShowScanner(false);
+          }}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
     </div>
   );
 }

@@ -1,70 +1,82 @@
-import { useEffect, useState } from "react";
-import api from "../services/api";
-import useAuthStore from "../store/useAuthStore";
 import toast from "react-hot-toast";
 
-export default function StoreSwitcher() {
-  const { setAuth, user } = useAuthStore();
-
-  const [stores, setStores] = useState([]);
-  const [loading, setLoading] = useState(false);
-
-  // 1. Load stores
-  useEffect(() => {
-    const fetchStores = async () => {
-      try {
-        const res = await api.get("/stores");
-        setStores(res.data);
-      } catch (err) {
-        console.error(err);
-      }
-    };
-
-    fetchStores();
-  }, []);
-
-  // 2. Switch store (IMPORTANT PART)
-  const handleSwitch = async (e) => {
-    const storeId = e.target.value;
-    if (!storeId) return;
-
-    setLoading(true);
-
-    try {
-      const res = await api.post("/stores/switch", {
-        storeId,
-      });
-
-      const { user: updatedUser, message } = res.data;
-
-      // 🔥 update global auth state (NO reload, NO localStorage)
-      setAuth(updatedUser);
-
-      toast.success(message || "Store switched");
-    } catch (err) {
-      console.error(err);
-      toast.error(err.response?.data?.message || "Failed to switch store");
-    } finally {
-      setLoading(false);
-    }
-  };
-
+export default function StoreSwitcher({
+  stores,
+  currentStore,
+  onSwitch,
+  switchingStore,
+}) {
   return (
     <div className="w-full px-4 py-3">
+
+      {/* Current Store Display */}
+      <div className="mb-3">
+        <p className="text-xs uppercase text-slate-400">
+          Current Store
+        </p>
+
+        <div className="text-white font-semibold flex items-center gap-2">
+          {currentStore?.isHeadOffice ? "🏢" : "📍"}
+
+          {currentStore?.name || "No store selected"}
+        </div>
+
+        {currentStore?.isHeadOffice && (
+          <p className="text-xs text-blue-400">
+            Head Office
+          </p>
+        )}
+      </div>
+
+
+      {/* Store Selector */}
       <select
-        onChange={handleSwitch}
-        value={user?.activeStoreId || user?.storeId || ""}
-        className="w-full p-2 rounded bg-slate-800 text-white"
-        disabled={loading}
+        value={currentStore?.id || ""}
+        onChange={onSwitch}
+        disabled={switchingStore}
+        className="
+          w-full 
+          p-3
+          rounded-xl
+          bg-slate-800
+          text-white
+          border
+          border-slate-700
+          focus:outline-none
+          focus:ring-2
+          focus:ring-blue-500
+        "
       >
-        <option value="">Select Store</option>
+
+        <option value="" disabled>
+          Choose store
+        </option>
+
+
+        {stores.length === 0 && (
+          <option disabled>
+            No stores available
+          </option>
+        )}
+
 
         {stores.map((store) => (
           <option key={store.id} value={store.id}>
-            {store.name}
+            {store.isHeadOffice
+              ? `🏢 ${store.name} (HQ)`
+              : `📍 ${store.name}`}
           </option>
         ))}
+
       </select>
+
+
+      {switchingStore && (
+        <p className="text-xs text-blue-400 mt-2">
+          Switching store...
+        </p>
+      )}
+
     </div>
   );
 }

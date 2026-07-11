@@ -1,7 +1,7 @@
 import { useNavigate, Outlet, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import api from "../../services/api";
-import { LayoutDashboard, Users, Package, ShoppingCart, CreditCard, FileText, Receipt, LogOut, Boxes, Truck, UserCog } from "lucide-react";
+import { LayoutDashboard, Users, Package, ShoppingCart, CreditCard, FileText, Receipt, LogOut, Boxes, Truck, UserCog, Building2 } from "lucide-react";
 import useAuthStore from "../../store/useAuthStore";
 import toast from "react-hot-toast";
 
@@ -14,6 +14,7 @@ export default function AdminLayout() {
 
   const [stores, setStores] = useState([]);
   const [currentStore, setCurrentStore] = useState(null);
+  const [switchingStore, setSwitchingStore] = useState(false);
 
   useEffect(() => {
     const fetchStores = async () => {
@@ -40,35 +41,43 @@ export default function AdminLayout() {
 const handleStoreSwitch = async (e) => {
   const selectedStoreId = e.target.value;
 
-  const selected = stores.find(s => s.id === selectedStoreId);
+  const selected = stores.find(
+    (store) => store.id === selectedStoreId
+  );
+
   if (!selected) return;
 
   try {
+    setSwitchingStore(true);
+
     const res = await api.post("/stores/switch", {
       storeId: selectedStoreId,
     });
 
     const updatedUser = res.data.user;
 
-    // sync localStorage
-    localStorage.setItem("user", JSON.stringify(updatedUser));
-    localStorage.setItem("activeStoreId", updatedUser.activeStoreId);
+    useAuthStore
+      .getState()
+      .setAuth(updatedUser, localStorage.getItem("token"));
 
-    // sync global auth store (Zustand)
-    useAuthStore.getState().setAuth(updatedUser, localStorage.getItem("token"));
-
-    // update UI instantly
     setCurrentStore(selected);
 
     toast.success(`Switched to ${selected.name}`);
+
   } catch (err) {
     console.error(err);
-    toast.error(err.response?.data?.message || "Failed to switch store");
+    toast.error(
+      err.response?.data?.message || 
+      "Failed to switch store"
+    );
+  } finally {
+    setSwitchingStore(false);
   }
 };
 
   const menu = [
     { title: "Dashboard", icon: LayoutDashboard, path: "/admin" },
+    { title: "Stores", icon: Building2, path: "/admin/stores" },
     { title: "Products", icon: Package, path: "/admin/products" },
     { title: "Inventory", icon: Boxes, path: "/admin/inventory" },
     { title: "Sales", icon: ShoppingCart, path: "/admin/sales" },
@@ -91,7 +100,12 @@ const handleStoreSwitch = async (e) => {
 
         {/* Store Switcher */}
         <div className="flex items-center gap-4">
-  <StoreSwitcher />
+  <StoreSwitcher
+  stores={stores}
+  currentStore={currentStore}
+  onSwitch={handleStoreSwitch}
+  switchingStore={switchingStore}
+/>
 </div>
 
         <div className="flex-1 p-4 space-y-2 overflow-y-auto">

@@ -94,6 +94,7 @@ export default function POS() {
         paymentMethod,
         discount: 0
       };
+      console.log(payload);
 
       const res = await api.post("/sales", payload);
 

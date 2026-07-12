@@ -16,45 +16,77 @@ export default function PayrollModule() {
   });
 
   const fetchData = async () => {
-    try {
-      // Fetch staff
-      const staffRes = await api.get("/users");
-      setStaff(staffRes.data);
 
-      // Fetch payroll records (placeholder for now)
-      setPayrollRecords([]);
-    } catch (err) {
-      toast.error("Failed to load payroll data");
-    }
-  };
+try{
+
+const staffRes = await api.get("/users");
+
+setStaff(staffRes.data);
+
+
+
+const payrollRes = await api.get("/payroll");
+
+setPayrollRecords(payrollRes.data);
+
+
+
+}catch(err){
+
+console.error(err);
+
+toast.error("Failed to load payroll data");
+
+}
+
+};
 
   useEffect(() => {
     fetchData();
   }, []);
 
-  const createPayroll = () => {
-    if (!form.userId || !form.salary) {
-      toast.error("Staff and salary are required");
-      return;
-    }
+  const createPayroll = async()=>{
 
-    const selectedStaff = staff.find(s => s.id === form.userId);
+try{
 
-    const newRecord = {
-      id: Date.now(),
-      staffName: selectedStaff?.name,
-      salary: parseFloat(form.salary),
-      bonus: parseFloat(form.bonus),
-      deductions: parseFloat(form.deductions),
-      netPay: parseFloat(form.salary) + parseFloat(form.bonus) - parseFloat(form.deductions),
-      month: form.month
-    };
 
-    setPayrollRecords([newRecord, ...payrollRecords]);
-    toast.success("Payroll recorded");
-    resetForm();
-    setMode("list");
-  };
+if(!form.userId || !form.salary){
+
+toast.error("Staff and salary are required");
+return;
+
+}
+
+
+
+await api.post("/payroll",form);
+
+
+
+toast.success("Payroll recorded");
+
+
+fetchData();
+
+
+resetForm();
+
+setMode("list");
+
+
+
+}catch(err){
+
+console.error(err);
+
+toast.error(
+err.response?.data?.message ||
+"Failed to create payroll"
+);
+
+}
+
+};
 
   const resetForm = () => {
     setForm({
@@ -150,7 +182,7 @@ export default function PayrollModule() {
             payrollRecords.map(record => (
               <div key={record.id} className="flex justify-between items-center p-5 border rounded-2xl">
                 <div>
-                  <p className="font-medium">{record.staffName}</p>
+                  <p className="font-medium">record.user?.name</p>
                   <p className="text-xs text-slate-500">{record.month}</p>
                 </div>
                 <div className="text-right">

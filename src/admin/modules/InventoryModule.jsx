@@ -1,192 +1,644 @@
 import { useEffect, useState } from "react";
 import api from "../../services/api";
-import { Package, AlertTriangle, ArrowUpDown, Plus, Search, Download, Filter } from "lucide-react";
+import {
+  Package,
+  AlertTriangle,
+  ArrowUpDown,
+  Search,
+  Plus,
+  X
+} from "lucide-react";
+
 import toast from "react-hot-toast";
+import useAuthStore from "../../store/useAuthStore";
+
 
 export default function InventoryModule() {
+  const { user } = useAuthStore();
+
   const [movements, setMovements] = useState([]);
   const [products, setProducts] = useState([]);
-  const [lowStock, setLowStock] = useState([]);
+
   const [loading, setLoading] = useState(true);
+
+  const [showAdjust, setShowAdjust] = useState(false);
+
 
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("All");
-  const [filterPeriod, setFilterPeriod] = useState("All");
 
-  // Stats
-  const [stats, setStats] = useState({
-    totalProducts: 0,
-    totalStock: 0,
-    lowStockCount: 0,
-    outOfStockCount: 0,
-    todaysMovements: 0,
-    inventoryValue: 0
+
+  const [adjustment, setAdjustment] = useState({
+    productId:"",
+    quantity:"",
+    type:"IN",
+    reason:""
   });
 
-  const fetchData = async () => {
-    try {
-      const [movRes, prodRes] = await Promise.all([
+
+
+  const [stats,setStats] = useState({
+    totalProducts:0,
+    totalStock:0,
+    lowStockCount:0,
+    outOfStockCount:0,
+    inventoryValue:0
+  });
+
+
+
+  const fetchInventory = async()=>{
+
+    try{
+
+      const [movementRes,productRes] = await Promise.all([
         api.get("/inventory/movements"),
         api.get("/products")
       ]);
-      setMovements(movRes.data);
-      setProducts(prodRes.data);
 
-      // Calculate stats
-      const totalStock = prodRes.data.reduce((sum, p) => sum + p.stockQuantity, 0);
-      const lowStockItems = prodRes.data.filter(p => p.stockQuantity <= 10);
-      const outOfStock = prodRes.data.filter(p => p.stockQuantity === 0);
-      const inventoryValue = prodRes.data.reduce((sum, p) => sum + (p.stockQuantity * p.buyingPrice), 0);
+
+      setMovements(movementRes.data);
+      setProducts(productRes.data);
+
+
+
+      const totalStock = productRes.data.reduce(
+        (sum,p)=>sum+(p.stockQuantity || 0),
+        0
+      );
+
+
+      const lowStock = productRes.data.filter(
+        p=>(p.stockQuantity || 0)<=10
+      );
+
+
+      const outStock = productRes.data.filter(
+        p=>(p.stockQuantity || 0)===0
+      );
+
+
+      const value = productRes.data.reduce(
+        (sum,p)=>
+          sum+
+          ((p.stockQuantity || 0)*(p.buyingPrice || 0)),
+        0
+      );
+
+
 
       setStats({
-        totalProducts: prodRes.data.length,
+        totalProducts:productRes.data.length,
         totalStock,
-        lowStockCount: lowStockItems.length,
-        outOfStockCount: outOfStock.length,
-        todaysMovements: movRes.data.length, // Simplified
-        inventoryValue
+        lowStockCount:lowStock.length,
+        outOfStockCount:outStock.length,
+        inventoryValue:value
       });
 
-      setLowStock(lowStockItems);
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to load inventory data");
-    } finally {
+
+
+    }catch(error){
+
+      console.error(error);
+      toast.error("Failed to load inventory");
+
+    }finally{
+
       setLoading(false);
+
     }
+
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
 
-  const filteredMovements = movements.filter(m => {
-    const matchesSearch = m.product?.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = filterType === "All" || m.type === filterType;
-    return matchesSearch && matchesType;
-  });
+
+  useEffect(() => {
+  if (user?.activeStoreId || user?.storeId) {
+    fetchInventory();
+  }
+}, [user?.activeStoreId, user?.storeId]);
+
+
+
+
+  const adjustStock = async()=>{
+
+    try{
+
+      if(
+        !adjustment.productId ||
+        !adjustment.quantity
+      ){
+        toast.error("Product and quantity required");
+        return;
+      }
+
+
+
+      await api.post(
+        "/inventory/adjust",
+        adjustment
+      );
+
+
+      toast.success("Stock updated");
+
+
+      setShowAdjust(false);
+
+
+      setAdjustment({
+        productId:"",
+        quantity:"",
+        type:"IN",
+        reason:""
+      });
+
+
+      fetchInventory();
+
+
+
+    }catch(error){
+
+      console.error(error);
+
+      toast.error(
+        error.response?.data?.message ||
+        "Stock adjustment failed"
+      );
+
+    }
+
+  };
+
+
+
+
+
+  const filteredMovements =
+    movements.filter(m=>{
+
+      const name =
+        m.product?.name?.toLowerCase() || "";
+
+
+      return (
+        name.includes(
+          searchTerm.toLowerCase()
+        )
+        &&
+        (
+          filterType==="All" ||
+          m.type===filterType
+        )
+      );
+
+    });
+
+
+
 
   return (
+
     <div className="space-y-8">
-      <h1 className="text-3xl font-bold flex items-center gap-3">
-        <Package /> Inventory Management Center
-      </h1>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <div className="bg-white p-6 rounded-3xl shadow">
-          <p className="text-slate-500 text-sm">Total Products</p>
-          <p className="text-3xl font-bold">{stats.totalProducts}</p>
-        </div>
-        <div className="bg-white p-6 rounded-3xl shadow">
-          <p className="text-slate-500 text-sm">Total Stock</p>
-          <p className="text-3xl font-bold">{stats.totalStock}</p>
-        </div>
-        <div className="bg-white p-6 rounded-3xl shadow text-orange-600">
-          <p className="text-slate-500 text-sm">Low Stock Items</p>
-          <p className="text-3xl font-bold">{stats.lowStockCount}</p>
-        </div>
-        <div className="bg-white p-6 rounded-3xl shadow text-red-600">
-          <p className="text-slate-500 text-sm">Out of Stock</p>
-          <p className="text-3xl font-bold">{stats.outOfStockCount}</p>
-        </div>
-        <div className="bg-white p-6 rounded-3xl shadow">
-          <p className="text-slate-500 text-sm">Today's Movements</p>
-          <p className="text-3xl font-bold">{stats.todaysMovements}</p>
-        </div>
-        <div className="bg-white p-6 rounded-3xl shadow">
-          <p className="text-slate-500 text-sm">Inventory Value</p>
-          <p className="text-3xl font-bold">UGX {stats.inventoryValue.toLocaleString()}</p>
-        </div>
+
+      <div className="flex justify-between items-center">
+
+        <h1 className="text-3xl font-bold flex items-center gap-3">
+          <Package/>
+          Inventory Management
+        </h1>
+
+
+        <button
+          onClick={()=>setShowAdjust(true)}
+          className="
+          bg-blue-600
+          text-white
+          px-6
+          py-3
+          rounded-2xl
+          flex
+          gap-2
+          items-center
+          "
+        >
+          <Plus size={20}/>
+          Adjust Stock
+        </button>
+
       </div>
 
-      {/* Search & Filters */}
+
+
+
+
+      {/* STATS */}
+
+      <div className="
+      grid
+      grid-cols-2
+      md:grid-cols-5
+      gap-5
+      ">
+
+
+        <Stat
+          title="Products"
+          value={stats.totalProducts}
+        />
+
+
+        <Stat
+          title="Stock Units"
+          value={stats.totalStock}
+        />
+
+
+        <Stat
+          title="Low Stock"
+          value={stats.lowStockCount}
+        />
+
+
+        <Stat
+          title="Out Stock"
+          value={stats.outOfStockCount}
+        />
+
+
+        <Stat
+          title="Value"
+          value={`UGX ${stats.inventoryValue.toLocaleString()}`}
+        />
+
+
+      </div>
+
+
+
+
+
+      {/* SEARCH */}
+
       <div className="flex gap-4">
-        <div className="flex-1 relative">
-          <Search className="absolute left-4 top-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search product, barcode, SKU..."
-            className="w-full pl-12 p-4 border rounded-2xl"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+
+
+        <div className="relative flex-1">
+
+          <Search
+            className="
+            absolute
+            left-4
+            top-4
+            text-slate-400
+            "
           />
+
+
+          <input
+            className="
+            w-full
+            p-4
+            pl-12
+            rounded-2xl
+            border
+            "
+            placeholder="Search product..."
+            value={searchTerm}
+            onChange={
+              e=>setSearchTerm(e.target.value)
+            }
+          />
+
         </div>
 
-        <select className="p-4 border rounded-2xl" value={filterType} onChange={(e) => setFilterType(e.target.value)}>
-          <option value="All">All Movements</option>
-          <option value="SALE">Sales</option>
-          <option value="PURCHASE">Purchases</option>
-          <option value="ADJUSTMENT">Adjustments</option>
-          <option value="IN">Stock In</option>
-          <option value="OUT">Stock Out</option>
+
+
+        <select
+          className="p-4 border rounded-2xl"
+          value={filterType}
+          onChange={
+            e=>setFilterType(e.target.value)
+          }
+        >
+
+          <option value="All">
+            All
+          </option>
+
+          <option value="IN">
+            Stock In
+          </option>
+
+          <option value="OUT">
+            Stock Out
+          </option>
+
+          <option value="SALE">
+            Sales
+          </option>
+
+          <option value="ADJUSTMENT">
+            Adjustment
+          </option>
+
         </select>
 
-        <select className="p-4 border rounded-2xl" value={filterPeriod} onChange={(e) => setFilterPeriod(e.target.value)}>
-          <option value="All">All Time</option>
-          <option value="Today">Today</option>
-          <option value="Week">This Week</option>
-          <option value="Month">This Month</option>
-        </select>
+
       </div>
 
-      {/* Low Stock Alert */}
-      {lowStock.length > 0 && (
-        <div className="bg-orange-50 border border-orange-200 p-6 rounded-3xl">
-          <h3 className="font-bold text-orange-700 mb-4 flex items-center gap-2">
-            <AlertTriangle /> Low Stock Items
-          </h3>
-          <div className="flex flex-wrap gap-3">
-            {lowStock.slice(0, 8).map(p => (
-              <div key={p.id} className="bg-white px-5 py-3 rounded-2xl border border-orange-100">
-                {p.name} <span className="font-bold text-red-600">({p.stockQuantity})</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
-      {/* Movement History */}
-      <div className="bg-white rounded-3xl shadow p-8">
-        <h2 className="text-xl font-bold mb-6 flex items-center gap-3">
-          <ArrowUpDown /> Inventory Movements
+
+
+
+      {/* MOVEMENTS */}
+
+      <div className="
+      bg-white
+      rounded-3xl
+      shadow
+      p-8
+      ">
+
+
+        <h2 className="
+        text-xl
+        font-bold
+        flex
+        gap-3
+        mb-6
+        ">
+          <ArrowUpDown/>
+          Movement History
         </h2>
 
-        <div className="space-y-4 max-h-[600px] overflow-auto">
-          {filteredMovements.length === 0 ? (
-            <p className="text-slate-500 py-10 text-center">No movements found</p>
-          ) : (
-            filteredMovements.map(m => (
-              <div key={m.id} className="flex justify-between items-center p-5 border rounded-2xl hover:bg-slate-50">
-                <div className="flex items-center gap-5">
-                  <div className={`px-5 py-2 rounded-2xl text-xs font-medium ${m.type === 'IN' || m.type === 'PURCHASE' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                    {m.type}
-                  </div>
-                  <div>
-                    <p className="font-medium">{m.product?.name}</p>
-                    <p className="text-xs text-slate-500">{m.reason}</p>
-                  </div>
-                </div>
 
-                <div className="text-right">
-                  <p className={`font-bold text-xl ${m.type.includes('IN') || m.type === 'PURCHASE' ? 'text-green-600' : 'text-red-600'}`}>
-                    {m.type.includes('IN') || m.type === 'PURCHASE' ? '+' : ''}{m.quantity}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {new Date(m.createdAt).toLocaleString()}
-                  </p>
-                </div>
-              </div>
+
+
+        {
+        loading ?
+
+        <p>Loading...</p>
+
+        :
+
+        filteredMovements.length===0 ?
+
+        <p className="text-center text-slate-500">
+          No movements found
+        </p>
+
+
+        :
+
+        filteredMovements.map(m=>(
+
+          <div
+          key={m.id}
+          className="
+          flex
+          justify-between
+          border
+          rounded-2xl
+          p-5
+          mb-3
+          "
+          >
+
+            <div>
+
+              <p className="font-bold">
+                {m.product?.name}
+              </p>
+
+              <p className="text-sm text-slate-500">
+                {m.reason || "No reason"}
+              </p>
+
+            </div>
+
+
+            <div className="text-right">
+
+              <p className="font-bold">
+                {m.type==="IN" ? "+" : "-"}
+                {m.quantity}
+              </p>
+
+
+              <p className="text-xs text-slate-500">
+                {new Date(
+                  m.createdAt
+                ).toLocaleString()}
+              </p>
+
+            </div>
+
+
+          </div>
+
+
+        ))
+
+        }
+
+
+      </div>
+
+
+
+
+
+      {/* ADJUST MODAL */}
+
+      {
+      showAdjust &&
+
+      <div className="
+      fixed
+      inset-0
+      bg-black/40
+      flex
+      items-center
+      justify-center
+      ">
+
+
+        <div className="
+        bg-white
+        p-8
+        rounded-3xl
+        w-[450px]
+        space-y-5
+        ">
+
+
+          <div className="flex justify-between">
+
+            <h2 className="text-xl font-bold">
+              Adjust Stock
+            </h2>
+
+
+            <button
+            onClick={()=>setShowAdjust(false)}
+            >
+              <X/>
+            </button>
+
+          </div>
+
+
+
+
+          <select
+          className="w-full p-4 border rounded-xl"
+          value={adjustment.productId}
+          onChange={
+            e=>setAdjustment({
+              ...adjustment,
+              productId:e.target.value
+            })
+          }
+          >
+
+            <option value="">
+              Select Product
+            </option>
+
+
+            {
+            products.map(p=>(
+
+              <option
+              key={p.id}
+              value={p.id}
+              >
+                {p.name}
+              </option>
+
             ))
-          )}
+            }
+
+
+          </select>
+
+
+
+
+
+          <input
+          className="w-full p-4 border rounded-xl"
+          type="number"
+          placeholder="Quantity"
+          value={adjustment.quantity}
+          onChange={
+            e=>setAdjustment({
+              ...adjustment,
+              quantity:e.target.value
+            })
+          }
+          />
+
+
+
+
+          <select
+          className="w-full p-4 border rounded-xl"
+          value={adjustment.type}
+          onChange={
+            e=>setAdjustment({
+              ...adjustment,
+              type:e.target.value
+            })
+          }
+          >
+
+            <option value="IN">
+              Stock In
+            </option>
+
+            <option value="OUT">
+              Stock Out
+            </option>
+
+            <option value="ADJUSTMENT">
+              Set Quantity
+            </option>
+
+          </select>
+
+
+
+
+          <input
+          className="w-full p-4 border rounded-xl"
+          placeholder="Reason"
+          value={adjustment.reason}
+          onChange={
+            e=>setAdjustment({
+              ...adjustment,
+              reason:e.target.value
+            })
+          }
+          />
+
+
+
+          <button
+          onClick={adjustStock}
+          className="
+          w-full
+          bg-blue-600
+          text-white
+          py-4
+          rounded-xl
+          "
+          >
+            Save Adjustment
+          </button>
+
+
         </div>
+
+
       </div>
 
-      {/* Stock Adjustment */}
-      <div className="bg-white rounded-3xl shadow p-8">
-        <h2 className="text-xl font-bold mb-6">Stock Adjustment</h2>
-        {/* Keep your existing adjustment form here */}
-      </div>
+      }
+
+
     </div>
+
   );
+}
+
+
+
+
+function Stat({title,value}){
+
+return (
+
+<div className="
+bg-white
+p-6
+rounded-3xl
+shadow
+">
+
+<p className="text-slate-500 text-sm">
+{title}
+</p>
+
+<p className="text-3xl font-bold">
+{value}
+</p>
+
+</div>
+
+)
+
 }

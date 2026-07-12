@@ -2,9 +2,12 @@ import { useEffect, useState } from "react";
 import api from "../../services/api";
 import { Plus, Edit2, Trash2, Truck } from "lucide-react";
 import toast from "react-hot-toast";
+import useAuthStore from "../../store/useAuthStore";
 
 export default function SuppliersModule() {
+  const { user } = useAuthStore();
   const [suppliers, setSuppliers] = useState([]);
+  const [loading,setLoading] = useState(true);
   const [mode, setMode] = useState("list");
   const [selectedSupplier, setSelectedSupplier] = useState(null);
   const [form, setForm] = useState({
@@ -16,17 +19,46 @@ export default function SuppliersModule() {
   });
 
   const fetchSuppliers = async () => {
+
   try {
+
+    setLoading(true);
+
     const res = await api.get("/suppliers");
+
     setSuppliers(res.data);
-  } catch (err) {
-    toast.error("Failed to load suppliers");
+
+
+  } catch(err){
+
+    console.error(err);
+
+    toast.error(
+      err.response?.data?.message ||
+      "Failed to load suppliers"
+    );
+
+
+  } finally {
+
+    setLoading(false);
+
   }
+
 };
 
-  useEffect(() => {
+  useEffect(()=>{
+
+  if(user?.activeStoreId || user?.storeId){
+
     fetchSuppliers();
-  }, []);
+
+  }
+
+},[
+  user?.activeStoreId,
+  user?.storeId
+]);
 
   const createSupplier = async () => {
   try {
@@ -89,12 +121,82 @@ const deleteSupplier = async () => {
         </button>
       </div>
 
+      <div className="grid md:grid-cols-3 gap-5">
+
+
+<div className="bg-white rounded-3xl shadow p-6">
+
+<p className="text-slate-500">
+Total Suppliers
+</p>
+
+<p className="text-3xl font-bold">
+{suppliers.length}
+</p>
+
+</div>
+
+
+
+<div className="bg-white rounded-3xl shadow p-6">
+
+<p className="text-slate-500">
+Outstanding Debt
+</p>
+
+
+<p className="text-3xl font-bold text-red-600">
+
+UGX {
+suppliers
+.reduce(
+(sum,s)=>sum + Number(s.totalOwed || 0),
+0
+)
+.toLocaleString()
+
+}
+
+</p>
+
+</div>
+
+
+
+<div className="bg-white rounded-3xl shadow p-6">
+
+<p className="text-slate-500">
+Store
+</p>
+
+<p className="text-xl font-bold">
+
+{user?.activeStore?.name || "Current Store"}
+
+</p>
+
+</div>
+
+
+</div>
+
       <div className="grid grid-cols-12 gap-6">
         {/* Suppliers List */}
         <div className="col-span-5 bg-white rounded-3xl shadow p-6">
           <h2 className="font-bold text-lg mb-4">All Suppliers</h2>
           <div className="space-y-3 max-h-[600px] overflow-auto">
-            {suppliers.length === 0 ? (
+            {
+loading ? (
+
+<p className="text-slate-500 py-10 text-center">
+Loading suppliers...
+</p>
+
+)
+
+:
+
+suppliers.length === 0 ? (
               <p className="text-slate-500 py-10 text-center">No suppliers yet</p>
             ) : (
               suppliers.map(s => (
@@ -102,7 +204,9 @@ const deleteSupplier = async () => {
                   <div className="font-semibold">{s.name}</div>
                   <div className="text-sm text-slate-500">{s.phone}</div>
                   {s.totalOwed > 0 && (
-                    <div className="text-red-600 font-medium mt-1">Owed: UGX {s.totalOwed.toLocaleString()}</div>
+                    <div className="text-red-600 font-medium mt-1">Owed: UGX {Number(
+s.totalOwed || 0
+).toLocaleString()}</div>
                   )}
                 </div>
               ))

@@ -17,6 +17,7 @@ import ExpensesModule from "./admin/modules/ExpensesModule";
 import SuppliersModule from "./admin/modules/SuppliersModule";
 import PayrollModule from "./admin/modules/PayrollModule";
 import StoresModule from "./admin/modules/StoresModule";
+import ReportsModule from "./admin/modules/ReportsModule";
 
 import AuthGate from "./guards/AuthGate";
 import useAuthStore from "./store/useAuthStore";
@@ -63,6 +64,7 @@ export default function App() {
         <Route path="expenses" element={<ExpensesModule />}/>
         <Route path="suppliers" element={<SuppliersModule />}/>
         <Route path="payroll" element={<PayrollModule />}/>
+        <Route path="reports" element={<ReportsModule />}/>
       </Route>
     </Routes>
   );

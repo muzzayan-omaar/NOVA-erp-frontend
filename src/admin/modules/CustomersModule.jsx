@@ -2,9 +2,12 @@ import { useEffect, useState } from "react";
 import api from "../../services/api";
 import { UserPlus, Edit2, Trash2, Phone } from "lucide-react";
 import toast from "react-hot-toast";
+import useAuthStore from "../../store/useAuthStore";
 
 export default function CustomersModule() {
+  const { user } = useAuthStore();
   const [customers, setCustomers] = useState([]);
+  const [loading,setLoading] = useState(true);
   const [mode, setMode] = useState("list"); // list, create, edit
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [form, setForm] = useState({
@@ -15,17 +18,46 @@ export default function CustomersModule() {
   });
 
   const fetchCustomers = async () => {
-    try {
-      const res = await api.get("/customers");
-      setCustomers(res.data);
-    } catch (err) {
-      toast.error("Failed to load customers");
-    }
-  };
 
-  useEffect(() => {
+  try {
+
+    setLoading(true);
+
+    const res = await api.get("/customers");
+
+    setCustomers(res.data);
+
+
+  } catch (err) {
+
+    console.error(err);
+
+    toast.error(
+      err.response?.data?.message ||
+      "Failed to load customers"
+    );
+
+
+  } finally {
+
+    setLoading(false);
+
+  }
+
+};
+
+  useEffect(()=>{
+
+  if(user?.activeStoreId || user?.storeId){
+
     fetchCustomers();
-  }, []);
+
+  }
+
+},[
+  user?.activeStoreId,
+  user?.storeId
+]);
 
   const createCustomer = async () => {
     try {
@@ -80,12 +112,74 @@ export default function CustomersModule() {
         </button>
       </div>
 
+      <div className="grid md:grid-cols-3 gap-5">
+
+<div className="bg-white rounded-3xl shadow p-6">
+<p className="text-slate-500">
+Total Customers
+</p>
+
+<p className="text-3xl font-bold">
+{customers.length}
+</p>
+</div>
+
+
+<div className="bg-white rounded-3xl shadow p-6">
+
+<p className="text-slate-500">
+Outstanding Credit
+</p>
+
+<p className="text-3xl font-bold text-red-600">
+
+UGX {
+customers
+.reduce(
+(sum,c)=>sum + Number(c.totalCredit || 0),
+0
+)
+.toLocaleString()
+}
+
+</p>
+
+</div>
+
+
+<div className="bg-white rounded-3xl shadow p-6">
+
+<p className="text-slate-500">
+Active Store
+</p>
+
+<p className="text-xl font-bold">
+
+{user?.activeStore?.name || "Current Store"}
+
+</p>
+
+</div>
+
+
+</div>
+
       <div className="grid grid-cols-12 gap-6">
         {/* Customers List */}
         <div className="col-span-5 bg-white rounded-3xl shadow p-6">
           <h2 className="font-bold text-lg mb-4">All Customers</h2>
           <div className="space-y-3 max-h-[600px] overflow-auto">
-            {customers.map(c => (
+
+{
+loading ?
+
+<p className="text-center text-slate-500">
+Loading customers...
+</p>
+
+:
+
+customers.map(c => (
               <div
                 key={c.id}
                 onClick={() => {
@@ -105,7 +199,7 @@ export default function CustomersModule() {
                   <p className="text-sm text-slate-500">{c.phone}</p>
                 </div>
                 <div className="text-right">
-                  <p className="font-bold text-red-600">UGX {c.totalCredit?.toLocaleString() || 0}</p>
+                  <p className="font-bold text-red-600">UGX {Number(c.totalCredit || 0).toLocaleString()}</p>
                   <p className="text-xs text-slate-500">Credit</p>
                 </div>
               </div>

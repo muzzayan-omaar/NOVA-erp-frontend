@@ -3,7 +3,12 @@ import api from "../../services/api";
 import { Plus, Edit2, Trash2, Package, AlertTriangle } from "lucide-react";
 import toast from "react-hot-toast";
 
+import useAuthStore from "../../store/useAuthStore";
+
 export default function ProductsModule() {
+
+  const { user } = useAuthStore();
+
   const [products, setProducts] = useState([]);
   const [lowStock, setLowStock] = useState([]);
   const [mode, setMode] = useState("list"); // list, create, edit
@@ -29,9 +34,15 @@ export default function ProductsModule() {
   };
 
   useEffect(() => {
-    fetchProducts();
-    fetchLowStock();
-  }, []);
+  if (!user?.activeStoreId && !user?.storeId) return;
+
+  fetchProducts();
+  fetchLowStock();
+
+}, [
+  user?.activeStoreId,
+  user?.storeId
+]);
 
   const resetForm = () => {
     setForm({

@@ -6,7 +6,7 @@ import Login from "./pages/Login";
 import AdminLayout from "./pages/admin/AdminLayout";
 
 /* MODULES */
-import DashboardModule from "./admin/modules/DashboardModule";
+import DashboardModule from "./admin/modules/dashboard/DashboardModule";
 import ProductsModule from "./admin/modules/ProductsModule";
 import InventoryModule from "./admin/modules/InventoryModule";
 import SalesModule from "./admin/modules/SalesModule";
@@ -21,6 +21,7 @@ import ReportsModule from "./admin/modules/ReportsModule";
 
 import AuthGate from "./guards/AuthGate";
 import useAuthStore from "./store/useAuthStore";
+import ProtectedRoute from "./guards/ProtectedRoute";
 
 export default function App() {
   const hydrate = useAuthStore((s) => s.hydrate);
@@ -46,26 +47,135 @@ export default function App() {
 
       {/* Admin Area */}
       <Route
-        path="/admin"
-        element={
-          <AuthGate>
-            <AdminLayout />
-          </AuthGate>
-        }
-      >
-        <Route index element={<DashboardModule />} />
-        <Route path="stores" element={<StoresModule />} />
-        <Route path="products" element={<ProductsModule />} />
-        <Route path="inventory" element={<InventoryModule />} />
-        <Route path="sales" element={<SalesModule />} />
-        <Route path="payments" element={<PaymentsModule />} />
-        <Route path="users" element={<UsersModule />} />
-        <Route path="customers" element={<CustomersModule />}/>
-        <Route path="expenses" element={<ExpensesModule />}/>
-        <Route path="suppliers" element={<SuppliersModule />}/>
-        <Route path="payroll" element={<PayrollModule />}/>
-        <Route path="reports" element={<ReportsModule />}/>
-      </Route>
+ path="/admin"
+ element={
+   <AuthGate>
+     <AdminLayout />
+   </AuthGate>
+ }
+>
+
+<Route 
+index 
+element={
+<ProtectedRoute permission="dashboard">
+<DashboardModule/>
+</ProtectedRoute>
+}
+/>
+
+
+<Route 
+path="stores"
+element={
+<ProtectedRoute permission="stores">
+<StoresModule/>
+</ProtectedRoute>
+}
+/>
+
+
+<Route 
+path="products"
+element={
+<ProtectedRoute permission="products">
+<ProductsModule/>
+</ProtectedRoute>
+}
+/>
+
+
+<Route 
+path="inventory"
+element={
+<ProtectedRoute permission="inventory">
+<InventoryModule/>
+</ProtectedRoute>
+}
+/>
+
+
+<Route 
+path="sales"
+element={
+<ProtectedRoute permission="sales">
+<SalesModule/>
+</ProtectedRoute>
+}
+/>
+
+
+<Route 
+path="payments"
+element={
+<ProtectedRoute permission="payments">
+<PaymentsModule/>
+</ProtectedRoute>
+}
+/>
+
+
+<Route 
+path="users"
+element={
+<ProtectedRoute permission="users">
+<UsersModule/>
+</ProtectedRoute>
+}
+/>
+
+
+<Route 
+path="customers"
+element={
+<ProtectedRoute permission="customers">
+<CustomersModule/>
+</ProtectedRoute>
+}
+/>
+
+
+<Route 
+path="expenses"
+element={
+<ProtectedRoute permission="expenses">
+<ExpensesModule/>
+</ProtectedRoute>
+}
+/>
+
+
+<Route 
+path="suppliers"
+element={
+<ProtectedRoute permission="suppliers">
+<SuppliersModule/>
+</ProtectedRoute>
+}
+/>
+
+
+<Route 
+path="payroll"
+element={
+<ProtectedRoute permission="payroll">
+<PayrollModule/>
+</ProtectedRoute>
+}
+/>
+
+
+<Route 
+path="reports"
+element={
+<ProtectedRoute permission="reports">
+<ReportsModule/>
+</ProtectedRoute>
+}
+/>
+
+
+</Route>
     </Routes>
   );
 }

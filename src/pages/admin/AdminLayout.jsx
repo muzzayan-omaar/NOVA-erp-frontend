@@ -4,7 +4,8 @@ import api from "../../services/api";
 import { LayoutDashboard, Users, Package, ShoppingCart, CreditCard, FileText, Receipt, LogOut, Boxes, Truck, UserCog, Building2 } from "lucide-react";
 import useAuthStore from "../../store/useAuthStore";
 import toast from "react-hot-toast";
-
+import { hasPermission } from "../../utils/hasPermission";
+import { ChevronDown } from "lucide-react";
 import StoreSwitcher from "../../components/StoreSwitcher";
 
 export default function AdminLayout() {
@@ -16,124 +17,199 @@ export default function AdminLayout() {
   const [currentStore, setCurrentStore] = useState(null);
   const [switchingStore, setSwitchingStore] = useState(false);
 
+  // Only one group open at a time
+  const [openGroup, setOpenGroup] = useState("Overview");
+
   useEffect(() => {
     const fetchStores = async () => {
       try {
         const res = await api.get("/stores");
         setStores(res.data);
         
-        // Get the active store from backend
         const currentRes = await api.get("/stores/current");
         setCurrentStore(currentRes.data);
       } catch (err) {
-  console.error("STORE FETCH ERROR:", err.response?.data);
+        console.error("STORE FETCH ERROR:", err.response?.data);
 
-  if (err.response?.status === 401) {
-    toast.error("Session expired. Please login again.");
-    logout();
-    navigate("/login");
-  }
-}
+        if (err.response?.status === 401) {
+          toast.error("Session expired. Please login again.");
+          logout();
+          navigate("/login");
+        }
+      }
     };
     fetchStores();
   }, []);
 
-const handleStoreSwitch = async (e) => {
-  const selectedStoreId = e.target.value;
+  // Auto-open the group that contains the current page
+  useEffect(() => {
+    const currentPath = location.pathname;
 
-  const selected = stores.find(
-    (store) => store.id === selectedStoreId
-  );
+    for (const group of menuGroups) {
+      const hasActiveItem = group.items.some(item => item.path === currentPath);
+      if (hasActiveItem) {
+        setOpenGroup(group.title);
+        break;
+      }
+    }
+  }, [location.pathname]);
 
-  if (!selected) return;
+  const handleStoreSwitch = async (e) => {
+    const selectedStoreId = e.target.value;
+    const selected = stores.find((store) => store.id === selectedStoreId);
+    if (!selected) return;
 
-  try {
-    setSwitchingStore(true);
+    try {
+      setSwitchingStore(true);
+      const res = await api.post("/stores/switch", { storeId: selectedStoreId });
+      const updatedUser = res.data.user;
 
-    const res = await api.post("/stores/switch", {
-      storeId: selectedStoreId,
-    });
+      useAuthStore.getState().setAuth(updatedUser, localStorage.getItem("token"));
+      setCurrentStore(selected);
+      toast.success(`Switched to ${selected.name}`);
+    } catch (err) {
+      console.error(err);
+      toast.error(err.response?.data?.message || "Failed to switch store");
+    } finally {
+      setSwitchingStore(false);
+    }
+  };
 
-    const updatedUser = res.data.user;
-
-    useAuthStore
-      .getState()
-      .setAuth(updatedUser, localStorage.getItem("token"));
-
-    setCurrentStore(selected);
-
-    toast.success(`Switched to ${selected.name}`);
-
-  } catch (err) {
-    console.error(err);
-    toast.error(
-      err.response?.data?.message || 
-      "Failed to switch store"
-    );
-  } finally {
-    setSwitchingStore(false);
-  }
-};
-
-  const menu = [
-    { title: "Dashboard", icon: LayoutDashboard, path: "/admin" },
-    { title: "Stores", icon: Building2, path: "/admin/stores" },
-    { title: "Products", icon: Package, path: "/admin/products" },
-    { title: "Inventory", icon: Boxes, path: "/admin/inventory" },
-    { title: "Sales", icon: ShoppingCart, path: "/admin/sales" },
-    { title: "Payments", icon: CreditCard, path: "/admin/payments" },
-    { title: "Customers", icon: Users, path: "/admin/customers" },
-    { title: "Suppliers", icon: Truck, path: "/admin/suppliers" },
-    { title: "Users", icon: UserCog, path: "/admin/users" },
-    { title: "Payroll", icon: Receipt, path: "/admin/payroll" },
-    { title: "Reports", icon: FileText, path: "/admin/reports" },
+  const menuGroups = [
+    { title: "Overview", items: [{ title: "Dashboard", icon: LayoutDashboard, path: "/admin", permission: "dashboard" }] },
+    {
+      title: "Business",
+      items: [
+        { title: "Stores", icon: Building2, path: "/admin/stores", permission: "stores" },
+        { title: "Users", icon: UserCog, path: "/admin/users", permission: "users" },
+        { title: "Payroll", icon: Receipt, path: "/admin/payroll", permission: "payroll" },
+      ],
+    },
+    {
+      title: "Inventory",
+      items: [
+        { title: "Products", icon: Package, path: "/admin/products", permission: "products" },
+        { title: "Inventory", icon: Boxes, path: "/admin/inventory", permission: "inventory" },
+        { title: "Suppliers", icon: Truck, path: "/admin/suppliers", permission: "suppliers" },
+      ],
+    },
+    {
+      title: "Sales",
+      items: [
+        { title: "Sales", icon: ShoppingCart, path: "/admin/sales", permission: "sales" },
+        { title: "Customers", icon: Users, path: "/admin/customers", permission: "customers" },
+        { title: "Payments", icon: CreditCard, path: "/admin/payments", permission: "payments" },
+      ],
+    },
+    {
+      title: "Reports",
+      items: [{ title: "Reports", icon: FileText, path: "/admin/reports", permission: "reports" }],
+    },
   ];
+
+  const handleGroupToggle = (title) => {
+    setOpenGroup(title); // Only one open at a time
+  };
 
   return (
     <div className="flex h-screen bg-slate-100">
       {/* Sidebar */}
-      <div className="w-72 bg-slate-900 text-white flex flex-col">
+      <div className="w-72 bg-slate-900 text-white flex flex-col border-r border-slate-800">
         <div className="p-6 border-b border-slate-800">
-          <h1 className="text-2xl font-bold">Nova ERP</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Nova ERP</h1>
           <p className="text-slate-400 text-sm">Business Control Center</p>
         </div>
 
         {/* Store Switcher */}
-        <div className="flex items-center gap-4">
-  <StoreSwitcher
-  stores={stores}
-  currentStore={currentStore}
-  onSwitch={handleStoreSwitch}
-  switchingStore={switchingStore}
-/>
-</div>
+        {hasPermission(user?.role, "stores") && (
+          <div className="px-6 py-5 border-b border-slate-800">
+            <StoreSwitcher
+              stores={stores}
+              currentStore={currentStore}
+              onSwitch={handleStoreSwitch}
+              switchingStore={switchingStore}
+            />
+          </div>
+        )}
 
-        <div className="flex-1 p-4 space-y-2 overflow-y-auto">
-          {menu.map((item) => {
-            const isActive = location.pathname === item.path;
+        {/* Scrollable Menu Area with Modern Scrollbar */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-1 custom-sidebar-scroll">
+          {menuGroups.map((group) => {
+            const visibleItems = group.items.filter((item) =>
+              hasPermission(user?.role, item.permission)
+            );
+
+            if (visibleItems.length === 0) return null;
+
+            const isOpen = openGroup === group.title;
+
             return (
-              <button
-                key={item.path}
-                onClick={() => navigate(item.path)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${
-                  isActive ? "bg-slate-700" : "hover:bg-slate-800"
-                }`}
-              >
-                <item.icon size={20} />
-                <span className="font-medium">{item.title}</span>
-              </button>
+              <div key={group.title}>
+                {/* Group Header */}
+                <button
+                  onClick={() => handleGroupToggle(group.title)}
+                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-800 transition-all duration-200 rounded-xl"
+                >
+                  <span className="font-semibold text-sm tracking-wider text-slate-200">
+                    {group.title}
+                  </span>
+                  <ChevronDown
+                    size={18}
+                    className={`transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`}
+                  />
+                </button>
+
+                {/* Dropdown Items */}
+                <div
+                  className={`overflow-hidden transition-all duration-300 ${
+                    isOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+                  }`}
+                >
+                  <div className="pl-3 pr-3 pb-2 space-y-1">
+                    {visibleItems.map((item) => {
+                      const isActive = location.pathname === item.path;
+
+                      return (
+                        <button
+                          key={item.path}
+                          onClick={() => navigate(item.path)}
+                          className={`w-full flex items-center gap-3 px-6 py-3 rounded-xl text-sm transition-all duration-200 ${
+                            isActive
+                              ? "bg-blue-600 text-white shadow-md shadow-blue-500/30"
+                              : "hover:bg-slate-800 text-slate-300 hover:text-white"
+                          }`}
+                        >
+                          <item.icon
+                            size={18}
+                            className={`${isActive ? "text-white" : "text-slate-400"}`}
+                          />
+                          <span className="font-medium">{item.title}</span>
+
+                          {isActive && (
+                            <div className="ml-auto w-1.5 h-1.5 bg-white rounded-full" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Subtle separator between groups */}
+                <div className="h-px bg-slate-800 mx-4 my-1" />
+              </div>
             );
           })}
         </div>
 
-        <div className="p-4 border-t border-slate-800">
+        {/* User Section */}
+        <div className="p-4 border-t border-slate-800 mt-auto">
           <div className="flex items-center gap-3 mb-4 px-4">
-            <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center font-bold">
+            <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center font-bold text-lg">
               {user?.name?.charAt(0)}
             </div>
             <div>
               <p className="font-medium">{user?.name}</p>
-              <p className="text-xs text-slate-400">{user?.role}</p>
+              <p className="text-xs text-slate-400 capitalize">{user?.role}</p>
             </div>
           </div>
 
@@ -142,7 +218,7 @@ const handleStoreSwitch = async (e) => {
               logout();
               navigate("/login");
             }}
-            className="w-full bg-red-600 hover:bg-red-700 py-3 rounded-xl flex items-center justify-center gap-2 font-medium"
+            className="w-full bg-red-600 hover:bg-red-700 py-3 rounded-2xl flex items-center justify-center gap-2 font-medium transition-colors"
           >
             <LogOut size={18} />
             Logout

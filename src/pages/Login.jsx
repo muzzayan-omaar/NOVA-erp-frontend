@@ -27,11 +27,15 @@ export default function Login() {
       toast.success("Login successful!");
 
       // Role-based redirect
-      if (user.role === "OWNER" || user.role === "MANAGER") {
-        navigate("/admin");
-      } else {
-        navigate("/");
-      }
+      // Role-based redirect
+if (
+ user.role === "GENERAL_MANAGER" ||
+ user.role === "BRANCH_MANAGER"
+) {
+    navigate("/admin");
+} else {
+    navigate("/");
+}
     } catch (err) {
       console.error(err);
       toast.error(err.response?.data?.message || "Invalid credentials");

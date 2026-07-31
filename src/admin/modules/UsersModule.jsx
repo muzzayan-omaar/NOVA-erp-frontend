@@ -3,7 +3,11 @@ import api from "../../services/api";
 import { UserPlus, User } from "lucide-react";
 import toast from "react-hot-toast";
 
+import { hasPermission } from "../../utils/hasPermission";
+import useAuthStore from "../../store/useAuthStore";
+
 export default function UsersModule() {
+  const { user } = useAuthStore();
 
   const [users, setUsers] = useState([]);
   const [stores, setStores] = useState([]);
@@ -37,6 +41,34 @@ export default function UsersModule() {
     }
   };
 
+ const availableRoles = [
+  {
+    value:"GENERAL_MANAGER",
+    label:"General Manager",
+    permission:"users"
+  },
+  {
+    value:"BRANCH_MANAGER",
+    label:"Branch Manager",
+    permission:"users"
+  },
+  {
+    value:"CASHIER",
+    label:"Cashier",
+    permission:"sales"
+  }
+];
+
+const allowedRoles = availableRoles.filter(role=>{
+
+  if(user?.role==="GENERAL_MANAGER"){
+    return true;
+  }
+
+
+  return false;
+
+});
 
 
   // LOAD STORES
@@ -261,7 +293,10 @@ email:u.email,
 
 password:"",
 
-role:u.role,
+role:
+u.role==="MANAGER"
+?"BRANCH_MANAGER"
+:u.role,
 
 storeId:u.storeId
 
@@ -462,16 +497,20 @@ role:e.target.value
 
 >
 
+{
+allowedRoles.map(role=>(
 
-<option value="CASHIER">
-Cashier
+<option
+key={role.value}
+value={role.value}
+>
+
+{role.label}
+
 </option>
 
-
-<option value="MANAGER">
-Manager
-</option>
-
+))
+}
 
 </select>
 

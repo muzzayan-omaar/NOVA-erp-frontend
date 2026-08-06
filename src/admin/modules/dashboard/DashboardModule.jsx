@@ -31,6 +31,7 @@ import jsPDF from "jspdf";
 import "jspdf-autotable";
 
 import toast from "react-hot-toast";
+import socket from "../../../services/socket";
 
 import useAuthStore from "../../../store/useAuthStore";
 import RevenueChart from "./components/RevenueChart";
@@ -67,6 +68,61 @@ export default function DashboardModule() {
     useState(false);
 
   const [notifications,setNotifications] = useState([]);
+  useEffect(()=>{
+
+
+socket.emit(
+"joinRooms",
+{
+
+companyId:user.companyId,
+
+storeId:
+user.activeStoreId || user.storeId,
+
+userId:user.id
+
+}
+);
+
+
+
+socket.on(
+"notification:new",
+(notification)=>{
+
+
+setNotifications(prev=>[
+
+notification,
+
+...prev
+
+]);
+
+
+toast(
+notification.title
+);
+
+
+}
+);
+
+
+
+return ()=>{
+
+
+socket.off(
+"notification:new"
+);
+
+
+};
+
+
+},[user]);
 
   const fetchNotifications = async()=>{
 
@@ -444,7 +500,61 @@ const notificationActions = {
 
 };
 
+const calcChange = (current, previous) => {
+  if (previous == null || current == null) return null;
+  if (previous === 0) {
+    if (current === 0) return null;
+    return { value: 100, isPositive: current > 0 };
+  }
+  const raw = ((current - previous) / Math.abs(previous)) * 100;
+  return {
+    value: Math.round(Math.abs(raw) * 10) / 10,
+    isPositive: raw >= 0,
+  };
+};
 
+// Build trend stats from salesTrend (expects [{ date, revenue, count }])
+const trend = [...(advancedData?.salesTrend || [])].sort((a, b) =>
+  a.date.localeCompare(b.date)
+);
+
+const last = trend[trend.length - 1];
+const prev = trend[trend.length - 2];
+
+const sumRange = (arr, key) =>
+  arr.reduce((s, row) => s + (Number(row[key]) || 0), 0);
+
+const last7 = trend.slice(-7);
+const prev7 = trend.slice(-14, -7);
+
+const revenueChange = calcChange(sumRange(last7, "revenue"), sumRange(prev7, "revenue"));
+const transactionsChange = calcChange(sumRange(last7, "count"), sumRange(prev7, "count"));
+
+const todayRevenueChange = calcChange(last?.revenue, prev?.revenue);
+const todaySalesChange = calcChange(last?.count, prev?.count);
+
+const avgLast7 =
+  sumRange(last7, "count") > 0
+    ? sumRange(last7, "revenue") / sumRange(last7, "count")
+    : 0;
+const avgPrev7 =
+  sumRange(prev7, "count") > 0
+    ? sumRange(prev7, "revenue") / sumRange(prev7, "count")
+    : 0;
+const avgSaleChange = calcChange(avgLast7, avgPrev7);
+
+// Prefer API-provided changes if your backend already sends them
+const changes = {
+  revenue: data.revenueChange ?? revenueChange,
+  profit: data.profitChange ?? null,
+  transactions: data.transactionsChange ?? transactionsChange,
+  todaySales: data.todaySalesChange ?? todaySalesChange,
+  todayRevenue: data.todayRevenueChange ?? todayRevenueChange,
+  averageSale: data.averageSaleChange ?? avgSaleChange,
+  customerCredit: data.customerCreditChange ?? null,
+  // decrease in debt is good → flip sign if you only have raw %
+  supplierDebt: data.supplierDebtChange ?? null,
+};
 
 
 return (
@@ -651,56 +761,55 @@ rounded-2xl
 
 {/* KPI - Horizontal & Compact */}
 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-    <Kpi 
-        icon={DollarSign}
-        title="Revenue"
-        value={`UGX ${data.totalRevenue.toLocaleString()}`}
-        change={{ value: 12.5, isPositive: true }}
-    />
-    <Kpi 
-        icon={DollarSign}
-        title="Profit"
-        value={`UGX ${data.totalProfit.toLocaleString()}`}
-        change={{ value: 8.3, isPositive: true }}
-    />
-    <Kpi 
-        icon={ShoppingCart}
-        title="Transactions"
-        value={data.totalTransactions}
-        change={{ value: -3.2, isPositive: false }}
-    />
-    <Kpi 
-        icon={ShoppingCart}
-        title="Today's Sales"
-        value={data.todayTransactions}
-        change={{ value: 18.7, isPositive: true }}
-    />
-    <Kpi 
-        icon={DollarSign}
-        title="Today's Revenue"
-        value={`UGX ${data.todayRevenue.toLocaleString()}`}
-        change={{ value: 5.4, isPositive: true }}
-    />
-    <Kpi 
-        icon={BarChart3}
-        title="Average Sale"
-        value={`UGX ${Math.round(data.averageTransaction).toLocaleString()}`}
-        change={{ value: -1.8, isPositive: false }}
-    />
-    <Kpi 
-        icon={Users}
-        title="Customer Credit"
-        value={`UGX ${data.customerCredit.toLocaleString()}`}
-        change={{ value: 4.1, isPositive: true }}
-    />
-    <Kpi 
-        icon={AlertTriangle}
-        title="Supplier Debt"
-        value={`UGX ${data.supplierDebt.toLocaleString()}`}
-        change={{ value: -14.6, isPositive: true }}
-    />
+  <Kpi
+    icon={DollarSign}
+    title="Revenue"
+    value={`UGX ${data.totalRevenue.toLocaleString()}`}
+    change={changes.revenue}
+  />
+  <Kpi
+    icon={DollarSign}
+    title="Profit"
+    value={`UGX ${data.totalProfit.toLocaleString()}`}
+    change={changes.profit}
+  />
+  <Kpi
+    icon={ShoppingCart}
+    title="Transactions"
+    value={data.totalTransactions}
+    change={changes.transactions}
+  />
+  <Kpi
+    icon={ShoppingCart}
+    title="Today's Sales"
+    value={data.todayTransactions}
+    change={changes.todaySales}
+  />
+  <Kpi
+    icon={DollarSign}
+    title="Today's Revenue"
+    value={`UGX ${data.todayRevenue.toLocaleString()}`}
+    change={changes.todayRevenue}
+  />
+  <Kpi
+    icon={BarChart3}
+    title="Average Sale"
+    value={`UGX ${Math.round(data.averageTransaction).toLocaleString()}`}
+    change={changes.averageSale}
+  />
+  <Kpi
+    icon={Users}
+    title="Customer Credit"
+    value={`UGX ${data.customerCredit.toLocaleString()}`}
+    change={changes.customerCredit}
+  />
+  <Kpi
+    icon={AlertTriangle}
+    title="Supplier Debt"
+    value={`UGX ${data.supplierDebt.toLocaleString()}`}
+    change={changes.supplierDebt}
+  />
 </div>
-
 
 
 
@@ -751,15 +860,21 @@ gap-6
 
 
 <NotificationDrawer
-
-    open={drawerOpen}
-
-    onClose={()=>setDrawerOpen(false)}
-
-    notifications={notifications}
-
-    setNotifications={setNotifications}
-
+  open={drawerOpen}
+  onClose={() => setDrawerOpen(false)}
+  notifications={notifications}
+  onRead={async (id) => {
+    try {
+      await api.patch(`/notifications/${id}/read`);
+      setNotifications((prev) =>
+        prev.map((n) =>
+          n.id === id ? { ...n, isRead: true } : n
+        )
+      );
+    } catch (error) {
+      console.error("Failed marking notification", error);
+    }
+  }}
 />
 </div>
 

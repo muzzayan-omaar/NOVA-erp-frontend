@@ -30,6 +30,39 @@ export default function App() {
     hydrate();
   }, []);
 
+  useEffect(()=>{
+
+    const restoreSession=async()=>{
+
+        useAuthStore.getState().hydrate();
+
+        try{
+
+            const res =
+            await api.get("/auth/me");
+
+            useAuthStore.getState().setAuth(
+
+                res.data,
+
+                useAuthStore.getState().token
+
+            );
+
+        }
+
+        catch{
+
+            useAuthStore.getState().logout();
+
+        }
+
+    };
+
+    restoreSession();
+
+},[]);
+
    return (
     <Routes>
       {/* Public */}

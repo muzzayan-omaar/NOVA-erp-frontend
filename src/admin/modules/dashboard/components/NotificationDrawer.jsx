@@ -9,10 +9,9 @@ import {
   Target,
   AlertTriangle,
   Bell,
-  ThumbsUp,
-  ExternalLink
+  ExternalLink,
+  Check,
 } from "lucide-react";
-import api from "../../../../services/api";
 
 const iconMap = {
   LOW_STOCK: PackageX,
@@ -22,103 +21,54 @@ const iconMap = {
   TARGET: Target,
   ALERT: AlertTriangle,
   SALE: Package,
+  SALE_COMPLETED: PackageCheck,
   INVENTORY: Package,
   SYSTEM: Bell,
-  DEFAULT: Bell
+  FAILED_LOGIN: AlertTriangle,
+  DEFAULT: Bell,
 };
 
 const priorityStyles = {
   HIGH: "bg-red-100 text-red-700",
   CRITICAL: "bg-red-100 text-red-700",
   MEDIUM: "bg-orange-100 text-orange-700",
-  LOW: "bg-blue-100 text-blue-700"
-};
-
-// Define actions per notification type
-const notificationActions = {
-  LOW_STOCK: {
-    label: "View inventory",
-    path: "/admin/products",
-    acknowledge: false
-  },
-  STOCK_RECEIVED: {
-    label: "View inventory",
-    path: "/admin/products",
-    acknowledge: false
-  },
-  SALE: {
-    label: "View sales",
-    path: "/admin/sales",
-    acknowledge: false
-  },
-  TARGET: {
-    label: "View targets",
-    path: "/admin/targets",
-    acknowledge: false
-  },
-  LOGIN: {
-    label: "Acknowledge",
-    path: null,
-    acknowledge: true
-  },
-  LOGOUT: {
-    label: "Acknowledge",
-    path: null,
-    acknowledge: true
-  },
-  FAILED_LOGIN: {
-    label: "Acknowledge",
-    path: null,
-    acknowledge: true
-  },
-  INVENTORY: {
-    label: "View inventory",
-    path: "/admin/inventory",
-    acknowledge: false
-  },
-  SYSTEM: {
-    label: "Acknowledge",
-    path: null,
-    acknowledge: true
-  }
+  LOW: "bg-blue-100 text-blue-700",
 };
 
 export default function NotificationDrawer({
   open,
   onClose,
   notifications = [],
-  setNotifications
+  onRead,
 }) {
   if (!open) return null;
 
   const navigate = useNavigate();
 
-  const markAsRead = async (id) => {
-    try {
-      await api.patch(`/notifications/${id}/read`);
-
-      setNotifications((prev) =>
-        prev.map((notification) =>
-          notification.id === id
-            ? { ...notification, isRead: true }
-            : notification
-        )
-      );
-    } catch (error) {
-      console.error("Failed marking notification", error);
-    }
-  };
-
   const handleAction = (notification) => {
-    const action = notificationActions[notification.type];
+    // Mark as read + close drawer first
+    onRead?.(notification.id);
+    onClose();
 
-    if (!action) return;
+    switch (notification.type) {
+      case "LOW_STOCK":
+        navigate(
+          `/inventory/products/${notification.metadata?.productId}`
+        );
+        break;
 
-    if (action.path) {
-      navigate(action.path);
+      case "SALE_COMPLETED":
+        navigate(`/sales/${notification.metadata?.saleId}`);
+        break;
+
+      case "PAYROLL_PENDING":
+        navigate("/payroll");
+        break;
+
+      default:
+        // already marked read above
+        break;
     }
-
-    markAsRead(notification.id);
   };
 
   return (
@@ -159,8 +109,6 @@ export default function NotificationDrawer({
           {notifications.map((notification) => {
             const Icon =
               iconMap[notification.type] || iconMap.DEFAULT;
-
-            const action = notificationActions[notification.type];
 
             return (
               <div
@@ -206,19 +154,73 @@ export default function NotificationDrawer({
                       </span>
                     </div>
 
-                    {action && (
-                      <button
-                        onClick={() => handleAction(notification)}
-                        className="mt-3 px-4 py-2 rounded-xl bg-slate-900 text-white text-sm flex items-center gap-2"
-                      >
-                        {action.acknowledge ? (
-                          <ThumbsUp size={15} />
-                        ) : (
+                    {/* Type-specific action buttons */}
+                    <div className="mt-4 flex justify-end gap-2 flex-wrap">
+                      {/* Critical / actionable types */}
+                      {notification.type === "LOW_STOCK" && (
+                        <button
+                          onClick={() => handleAction(notification)}
+                          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl text-sm"
+                        >
                           <ExternalLink size={15} />
+                          View Product
+                        </button>
+                      )}
+
+                      {notification.type === "SALE_COMPLETED" && (
+                        <button
+                          onClick={() => handleAction(notification)}
+                          className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-xl text-sm"
+                        >
+                          <ExternalLink size={15} />
+                          View Sale
+                        </button>
+                      )}
+
+                      {notification.type === "PAYROLL_PENDING" && (
+                        <button
+                          onClick={() => handleAction(notification)}
+                          className="flex items-center gap-2 bg-orange-600 text-white px-4 py-2 rounded-xl text-sm"
+                        >
+                          <ExternalLink size={15} />
+                          Open Payroll
+                        </button>
+                      )}
+
+                      {/* Optional: mark as read without navigating (while unread) */}
+                      {!notification.isRead &&
+                        (notification.type === "LOW_STOCK" ||
+                          notification.type === "SALE_COMPLETED" ||
+                          notification.type === "PAYROLL_PENDING") && (
+                          <button
+                            onClick={() => onRead?.(notification.id)}
+                            className="flex items-center gap-2 bg-slate-200 text-slate-700 px-4 py-2 rounded-xl text-sm"
+                          >
+                            <Check size={15} />
+                            Mark as read
+                          </button>
                         )}
-                        {action.label}
-                      </button>
-                    )}
+
+                      {/* Login / low-priority — Acknowledge → Acknowledged */}
+                      {(notification.type === "LOGIN" ||
+                        notification.type === "LOGOUT" ||
+                        notification.type === "FAILED_LOGIN" ||
+                        notification.type === "SYSTEM") &&
+                        (notification.isRead ? (
+                          <span className="flex items-center gap-2 bg-slate-100 text-slate-500 px-4 py-2 rounded-xl text-sm">
+                            <Check size={15} />
+                            Acknowledged
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => onRead?.(notification.id)}
+                            className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-xl text-sm"
+                          >
+                            <Check size={15} />
+                            Acknowledge
+                          </button>
+                        ))}
+                    </div>
                   </div>
                 </div>
               </div>

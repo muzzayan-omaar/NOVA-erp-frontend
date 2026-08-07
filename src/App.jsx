@@ -20,6 +20,8 @@ import StoresModule from "./admin/modules/StoresModule";
 import ReportsModule from "./admin/modules/ReportsModule";
 import AuditModule from "./admin/modules/AuditModule";
 import PendingRequestsModule from "./admin/modules/PendingRequestsModule";
+import StockCountModule from "./admin/modules/StockCountModule";
+import StockCountDetail from "./admin/modules/stock-count/StockCountDetail";
 
 import AuthGate from "./guards/AuthGate";
 import useAuthStore from "./store/useAuthStore";
@@ -109,6 +111,23 @@ element={
 <StoresModule/>
 </ProtectedRoute>
 }
+/>
+
+<Route
+  path="stock-count"
+  element={
+    <ProtectedRoute permission="inventory">
+      <StockCountModule/>
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="stock-count/:id"
+  element={
+    <ProtectedRoute permission="inventory">
+      <StockCountDetail/>
+    </ProtectedRoute>
+  }
 />
 
 <Route

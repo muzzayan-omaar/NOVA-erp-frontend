@@ -39,8 +39,7 @@ import BranchPerformanceCard from "./components/BranchPerformanceCard";
 import CashierLeaderboard from "./components/CashierLeaderboard";
 import LowStockAlert from "./components/LowStockAlert";
 
-import NotificationBell from "./components/NotificationBell";
-import NotificationDrawer from "./components/NotificationDrawer";
+
 
 
 
@@ -67,7 +66,6 @@ export default function DashboardModule() {
   const [refreshing,setRefreshing] =
     useState(false);
 
-  const [notifications,setNotifications] = useState([]);
   useEffect(()=>{
 
 
@@ -124,29 +122,7 @@ socket.off(
 
 },[user]);
 
-  const fetchNotifications = async()=>{
-
-    try{
-
-        const res =
-        await api.get("/notifications");
-
-
-        setNotifications(
-            res.data
-        );
-
-
-    }catch(error){
-
-        console.error(
-            "Notification fetch failed",
-            error
-        );
-
-    }
-
-};
+ 
 
   // =========================
   // FETCH STORES
@@ -237,24 +213,9 @@ socket.off(
   useEffect(()=>{
 
     fetchStores();
-    fetchNotifications();
 
   },[]);
 
-  useEffect(()=>{
-
-const interval =
-setInterval(()=>{
-
-    fetchNotifications();
-
-},30000);
-
-
-return ()=>clearInterval(interval);
-
-
-},[]);
 
   useEffect(()=>{
 
@@ -651,14 +612,7 @@ value={store.id}
 }
 
 
-<NotificationBell
-    unreadCount={
-        notifications.filter(
-            n=>!n.isRead
-        ).length
-    }
-    onClick={() => setDrawerOpen(true)}
-/>
+
 
 
 <button
@@ -859,23 +813,7 @@ gap-6
 />
 
 
-<NotificationDrawer
-  open={drawerOpen}
-  onClose={() => setDrawerOpen(false)}
-  notifications={notifications}
-  onRead={async (id) => {
-    try {
-      await api.patch(`/notifications/${id}/read`);
-      setNotifications((prev) =>
-        prev.map((n) =>
-          n.id === id ? { ...n, isRead: true } : n
-        )
-      );
-    } catch (error) {
-      console.error("Failed marking notification", error);
-    }
-  }}
-/>
+
 </div>
 
 );

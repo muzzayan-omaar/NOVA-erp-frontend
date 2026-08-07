@@ -1,12 +1,14 @@
 import { useNavigate, Outlet, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import api from "../../services/api";
-import { LayoutDashboard, Users, Package, DollarSign, ShoppingCart, Inbox, CreditCard, FileText, Receipt, LogOut, Boxes, Truck, UserCog, Building2, ShieldAlert } from "lucide-react";
+import { LayoutDashboard, ClipboardList, Users, Package, DollarSign, ShoppingCart, Inbox, CreditCard, FileText, Receipt, LogOut, Boxes, Truck, UserCog, Building2, ShieldAlert } from "lucide-react";
 import useAuthStore from "../../store/useAuthStore";
 import toast from "react-hot-toast";
 import { hasPermission } from "../../utils/hasPermission";
 import { ChevronDown } from "lucide-react";
 import StoreSwitcher from "../../components/StoreSwitcher";
+import NotificationBell from "../../admin/modules/dashboard/components/NotificationBell";
+import NotificationDrawer from "../../admin/modules/dashboard/components/NotificationDrawer";
 
 export default function AdminLayout() {
   const navigate = useNavigate();
@@ -16,6 +18,27 @@ export default function AdminLayout() {
   const [stores, setStores] = useState([]);
   const [currentStore, setCurrentStore] = useState(null);
   const [switchingStore, setSwitchingStore] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+const [drawerOpen, setDrawerOpen] = useState(false);
+
+const fetchNotifications = async () => {
+  try {
+    const res = await api.get("/notifications");
+    setNotifications(res.data);
+  } catch (error) {
+    console.error("Notification fetch failed", error);
+  }
+};
+
+useEffect(() => {
+  fetchNotifications();
+
+  const interval = setInterval(() => {
+    fetchNotifications();
+  }, 30000);
+
+  return () => clearInterval(interval);
+}, []);
 
   // Only one group open at a time
   const [openGroup, setOpenGroup] = useState("Overview");
@@ -90,6 +113,7 @@ export default function AdminLayout() {
       items: [
         { title: "Products", icon: Package, path: "/admin/products", permission: "products" },
         { title: "Inventory", icon: Boxes, path: "/admin/inventory", permission: "inventory" },
+        { title: "Stock Count", icon: ClipboardList, path: "/admin/stock-count", permission: "inventory" },
         { title: "Suppliers", icon: Truck, path: "/admin/suppliers", permission: "suppliers" },
       ],
     },
@@ -248,10 +272,27 @@ export default function AdminLayout() {
         </div>
       </div>
 
+      
+
       {/* Main Content */}
       <div className="flex-1 overflow-auto p-8">
         <Outlet />
       </div>
+       {/* Floating Notification Bell — visible on every /admin page */}
+      <div className="fixed bottom-6 right-8 z-30">
+        <NotificationBell
+          unreadCount={notifications.filter((n) => !n.isRead).length}
+          onClick={() => setDrawerOpen(true)}
+        />
+      </div>
+
+        <NotificationDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        notifications={notifications}
+        setNotifications={setNotifications}
+        currentUserRole={user?.role}
+      />
     </div>
   );
 }

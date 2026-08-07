@@ -1,58 +1,91 @@
 import { useEffect, useState } from "react";
 import api from "../../services/api";
-import { Plus, Trash2, DollarSign } from "lucide-react";
+import useAuthStore from "../../store/useAuthStore";
+import { Plus, Trash2, DollarSign, X } from "lucide-react";
 import toast from "react-hot-toast";
 
+const CATEGORIES = ["General", "Rent", "Utilities", "Salary", "Transport", "Supplies", "Other"];
+
 export default function ExpensesModule() {
+  const { user } = useAuthStore();
+
   const [expenses, setExpenses] = useState([]);
-  const [mode, setMode] = useState("list");
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState("All");
+
   const [form, setForm] = useState({
     description: "",
     amount: "",
     category: "General",
-    date: new Date().toISOString().split('T')[0]
   });
 
+  const isGM = user?.role === "GENERAL_MANAGER";
+
   const fetchExpenses = async () => {
-    // For now, we'll simulate. Later we'll add backend route
-    // const res = await api.get("/expenses");
-    // setExpenses(res.data);
-    setExpenses([]); // Placeholder
+    try {
+      setLoading(true);
+      const res = await api.get("/expenses");
+      setExpenses(res.data);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to load expenses");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    fetchExpenses();
-  }, []);
+    if (user?.activeStoreId || user?.storeId) {
+      fetchExpenses();
+    }
+  }, [user?.activeStoreId, user?.storeId]);
 
-  const addExpense = () => {
+  const addExpense = async () => {
     if (!form.description || !form.amount) {
       toast.error("Description and amount are required");
       return;
     }
 
-    const newExpense = {
-      id: Date.now(),
-      ...form,
-      amount: parseFloat(form.amount)
-    };
+    try {
+      setSubmitting(true);
+      await api.post("/expenses", {
+        category: form.category,
+        description: form.description,
+        amount: parseFloat(form.amount),
+      });
 
-    setExpenses([newExpense, ...expenses]);
-    toast.success("Expense recorded");
-    setForm({
-      description: "",
-      amount: "",
-      category: "General",
-      date: new Date().toISOString().split('T')[0]
-    });
-    setMode("list");
+      toast.success("Expense recorded");
+      setForm({ description: "", amount: "", category: "General" });
+      setShowForm(false);
+      fetchExpenses();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to record expense");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const deleteExpense = (id) => {
-    setExpenses(expenses.filter(exp => exp.id !== id));
-    toast.success("Expense deleted");
+  const deleteExpense = async (id) => {
+    try {
+      await api.delete(`/expenses/${id}`);
+      toast.success("Expense deleted");
+      fetchExpenses();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to delete expense");
+    }
   };
 
-  const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+  const filteredExpenses =
+    categoryFilter === "All"
+      ? expenses
+      : expenses.filter((exp) => exp.category === categoryFilter);
+
+  const totalExpenses = filteredExpenses.reduce(
+    (sum, exp) => sum + Number(exp.amount || 0),
+    0
+  );
 
   return (
     <div className="space-y-6">
@@ -61,7 +94,7 @@ export default function ExpensesModule() {
           <DollarSign /> Expenses & Accounting
         </h1>
         <button
-          onClick={() => setMode("create")}
+          onClick={() => setShowForm(true)}
           className="bg-blue-600 text-white px-6 py-3 rounded-2xl flex items-center gap-2 hover:bg-blue-700"
         >
           <Plus size={20} /> Record Expense
@@ -69,13 +102,40 @@ export default function ExpensesModule() {
       </div>
 
       <div className="bg-white p-6 rounded-3xl shadow">
-        <div className="flex justify-between mb-6">
-          <h2 className="text-xl font-bold">Total Expenses</h2>
-          <p className="text-3xl font-bold text-red-600">UGX {totalExpenses.toLocaleString()}</p>
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h2 className="text-xl font-bold">Total Expenses</h2>
+            <p className="text-sm text-slate-500">
+              {categoryFilter === "All" ? "All categories" : categoryFilter}
+            </p>
+          </div>
+          <p className="text-3xl font-bold text-red-600">
+            UGX {totalExpenses.toLocaleString()}
+          </p>
         </div>
 
-        {mode === "create" && (
-          <div className="bg-slate-50 p-6 rounded-2xl mb-6">
+        <div className="mb-6">
+          <select
+            className="p-3 border rounded-2xl"
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+          >
+            <option value="All">All Categories</option>
+            {CATEGORIES.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+        </div>
+
+        {showForm && (
+          <div className="bg-slate-50 p-6 rounded-2xl mb-6 relative">
+            <button
+              onClick={() => setShowForm(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"
+            >
+              <X size={20} />
+            </button>
+
             <input
               placeholder="Expense Description"
               className="w-full p-4 border rounded-2xl mb-4"
@@ -95,37 +155,46 @@ export default function ExpensesModule() {
                 value={form.category}
                 onChange={(e) => setForm({ ...form, category: e.target.value })}
               >
-                <option value="General">General</option>
-                <option value="Rent">Rent</option>
-                <option value="Utilities">Utilities</option>
-                <option value="Salary">Salary</option>
-                <option value="Transport">Transport</option>
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
               </select>
             </div>
             <button
               onClick={addExpense}
-              className="mt-4 w-full bg-blue-600 text-white py-4 rounded-2xl font-semibold"
+              disabled={submitting}
+              className="mt-4 w-full bg-blue-600 text-white py-4 rounded-2xl font-semibold disabled:opacity-50"
             >
-              Record Expense
+              {submitting ? "Saving..." : "Record Expense"}
             </button>
           </div>
         )}
 
         <div className="space-y-3 max-h-[500px] overflow-auto">
-          {expenses.length === 0 ? (
+          {loading ? (
+            <p className="text-slate-500 py-10 text-center">Loading expenses...</p>
+          ) : filteredExpenses.length === 0 ? (
             <p className="text-slate-500 py-10 text-center">No expenses recorded yet</p>
           ) : (
-            expenses.map(exp => (
+            filteredExpenses.map((exp) => (
               <div key={exp.id} className="flex justify-between items-center p-4 border rounded-2xl">
                 <div>
-                  <p className="font-medium">{exp.description}</p>
-                  <p className="text-xs text-slate-500">{exp.category} • {exp.date}</p>
+                  <p className="font-medium">{exp.description || exp.category}</p>
+                  <p className="text-xs text-slate-500">
+                    {exp.category} • {new Date(exp.createdAt).toLocaleDateString()} •{" "}
+                    {exp.createdBy?.name || "Unknown"}
+                    {exp.store?.name ? ` • ${exp.store.name}` : ""}
+                  </p>
                 </div>
                 <div className="flex items-center gap-4">
-                  <p className="font-bold text-red-600">- UGX {exp.amount.toLocaleString()}</p>
-                  <button onClick={() => deleteExpense(exp.id)} className="text-red-500">
-                    <Trash2 size={18} />
-                  </button>
+                  <p className="font-bold text-red-600">
+                    - UGX {Number(exp.amount).toLocaleString()}
+                  </p>
+                  {isGM && (
+                    <button onClick={() => deleteExpense(exp.id)} className="text-red-500">
+                      <Trash2 size={18} />
+                    </button>
+                  )}
                 </div>
               </div>
             ))

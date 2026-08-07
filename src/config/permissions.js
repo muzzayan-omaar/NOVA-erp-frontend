@@ -17,7 +17,8 @@ GENERAL_MANAGER:[
 "inventory",
 "payments",
 "customers",
-"suppliers"
+"suppliers",
+"audit"
 
 ],
 

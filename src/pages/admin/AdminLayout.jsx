@@ -1,7 +1,7 @@
 import { useNavigate, Outlet, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import api from "../../services/api";
-import { LayoutDashboard, Users, Package, ShoppingCart, CreditCard, FileText, Receipt, LogOut, Boxes, Truck, UserCog, Building2 } from "lucide-react";
+import { LayoutDashboard, Users, Package, DollarSign, ShoppingCart, Inbox, CreditCard, FileText, Receipt, LogOut, Boxes, Truck, UserCog, Building2, ShieldAlert } from "lucide-react";
 import useAuthStore from "../../store/useAuthStore";
 import toast from "react-hot-toast";
 import { hasPermission } from "../../utils/hasPermission";
@@ -102,8 +102,18 @@ export default function AdminLayout() {
       ],
     },
     {
-      title: "Reports",
-      items: [{ title: "Reports", icon: FileText, path: "/admin/reports", permission: "reports" }],
+      title: "Finance",
+      items: [
+        { title: "Expenses", icon: DollarSign, path: "/admin/expenses", permission: "expenses" },
+        { title: "Reports", icon: FileText, path: "/admin/reports", permission: "reports" },
+      ],
+    },
+    {
+      title: "Oversight",
+      items: [
+        { title: "Pending Requests", icon: Inbox, path: "/admin/pending-requests", permission: "audit" },
+        { title: "Audit Log", icon: ShieldAlert, path: "/admin/audit", permission: "audit" },
+      ],
     },
   ];
 
@@ -129,6 +139,18 @@ export default function AdminLayout() {
               onSwitch={handleStoreSwitch}
               switchingStore={switchingStore}
             />
+          </div>
+        )}
+
+        {hasPermission(user?.role, "pos") && (
+          <div className="px-3 pt-3">
+            <button
+              onClick={() => navigate("/")}
+              className="w-full flex items-center gap-3 px-5 py-3 bg-blue-600 hover:bg-blue-700 rounded-xl text-sm font-semibold transition-all"
+            >
+              <ShoppingCart size={18} />
+              Go to POS
+            </button>
           </div>
         )}
 

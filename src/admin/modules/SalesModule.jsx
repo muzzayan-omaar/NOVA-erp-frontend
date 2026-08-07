@@ -7,10 +7,13 @@ import {
   User,
   Search,
   RefreshCw,
-  ShoppingBag
+  ShoppingBag,
+  Ban,
+  Undo2,
 } from "lucide-react";
 
 import toast from "react-hot-toast";
+import VoidRefundModal from "./sales/VoidRefundModal";
 
 
 export default function SalesModule() {
@@ -25,6 +28,9 @@ export default function SalesModule() {
 
   const [paymentFilter,setPaymentFilter] =
     useState("All");
+
+     const [actionSale, setActionSale] = useState(null);
+  const [actionMode, setActionMode] = useState(null);
 
 
 
@@ -513,6 +519,17 @@ sale.paymentMethod
 
 </span>
 
+<span className={`
+  px-4 py-2 rounded-full text-sm font-semibold ml-2
+  ${sale.status === "VOID" ? "bg-red-100 text-red-600" : ""}
+  ${sale.status === "REFUNDED" ? "bg-amber-100 text-amber-600" : ""}
+  ${sale.status === "COMPLETED" ? "bg-green-100 text-green-600" : ""}
+   ${sale.status === "PENDING_VOID" ? "bg-orange-100 text-orange-600" : ""}
+  ${sale.status === "PENDING_REFUND" ? "bg-orange-100 text-orange-600" : ""}
+`}>
+  {sale.status.replace("_", " ")}
+</span>
+
 
 
 <p className="
@@ -617,7 +634,37 @@ item.subtotal
 }
 
 
+{sale.status === "COMPLETED" && (
+  <div className="mt-5 flex gap-3 justify-end border-t pt-4">
+    <button
+      onClick={() => {
+        setActionSale(sale);
+        setActionMode("void");
+      }}
+      className="flex items-center gap-2 text-sm font-medium text-red-600 px-4 py-2 rounded-2xl border border-red-200 hover:bg-red-50"
+    >
+      <Ban size={16} />
+      Request Void
+    </button>
 
+    <button
+      onClick={() => {
+        setActionSale(sale);
+        setActionMode("refund");
+      }}
+      className="flex items-center gap-2 text-sm font-medium text-amber-600 px-4 py-2 rounded-2xl border border-amber-200 hover:bg-amber-50"
+    >
+      <Undo2 size={16} />
+      Request Refund
+    </button>
+  </div>
+)}
+
+{(sale.status === "PENDING_VOID" || sale.status === "PENDING_REFUND") && (
+  <div className="mt-5 border-t pt-4 text-sm text-amber-600 font-medium">
+    Awaiting manager approval — submitted by {sale.voidedBy?.name || "cashier"}
+  </div>
+)}
 </div>
 
 
@@ -712,7 +759,17 @@ sale.discount || 0
 </div>
 
 
-
+{actionSale && (
+  <VoidRefundModal
+    sale={actionSale}
+    mode={actionMode}
+    onClose={() => {
+      setActionSale(null);
+      setActionMode(null);
+    }}
+    onSuccess={fetchSales}
+  />
+)}
 </div>
 
 );

@@ -18,6 +18,8 @@ import SuppliersModule from "./admin/modules/SuppliersModule";
 import PayrollModule from "./admin/modules/PayrollModule";
 import StoresModule from "./admin/modules/StoresModule";
 import ReportsModule from "./admin/modules/ReportsModule";
+import AuditModule from "./admin/modules/AuditModule";
+import PendingRequestsModule from "./admin/modules/PendingRequestsModule";
 
 import AuthGate from "./guards/AuthGate";
 import useAuthStore from "./store/useAuthStore";
@@ -85,6 +87,7 @@ export default function App() {
    <AuthGate>
      <AdminLayout />
    </AuthGate>
+   
  }
 >
 
@@ -98,6 +101,7 @@ element={
 />
 
 
+
 <Route 
 path="stores"
 element={
@@ -107,6 +111,23 @@ element={
 }
 />
 
+<Route
+  path="pending-requests"
+  element={
+    <ProtectedRoute permission="audit">
+      <PendingRequestsModule/>
+    </ProtectedRoute>
+  }
+/>
+
+<Route
+  path="audit"
+  element={
+    <ProtectedRoute permission="audit">
+      <AuditModule/>
+    </ProtectedRoute>
+  }
+/>
 
 <Route 
 path="products"

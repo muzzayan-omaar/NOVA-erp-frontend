@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import useAuthStore from "../store/useAuthStore";
-import { ShoppingCart, LogOut, Search, X, Loader2 } from "lucide-react";
+import { ShoppingCart, LogOut, Search, X, Loader2, LayoutDashboard } from "lucide-react";
 import toast from "react-hot-toast";
 import ReceiptModal from "../components/pos/ReceiptModal";
 import BarcodeScanner from "../components/pos/BarcodeScanner";
+import { hasPermission } from "../utils/hasPermission";
 
 export default function POS() {
   const [products, setProducts] = useState([]);
@@ -44,7 +45,7 @@ export default function POS() {
       if (e.key === "Escape") setCart([]);
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        document.querySelector('input[placeholder*="Search"]').focus();
+        document.querySelector('input[placeholder*="Search"]')?.focus();
       }
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && cart.length > 0) {
         handleCheckout();
@@ -57,27 +58,32 @@ export default function POS() {
 
   // Add to Cart
   const addToCart = (product) => {
-    const existing = cart.find(item => item.id === product.id);
+    const existing = cart.find((item) => item.id === product.id);
     if (existing) {
-      setCart(cart.map(item =>
-        item.id === product.id ? { ...item, qty: item.qty + 1 } : item
-      ));
+      setCart(
+        cart.map((item) =>
+          item.id === product.id ? { ...item, qty: item.qty + 1 } : item
+        )
+      );
     } else {
       setCart([...cart, { ...product, qty: 1 }]);
     }
     toast.success(`Added ${product.name}`);
   };
 
-  const removeFromCart = (id) => setCart(cart.filter(item => item.id !== id));
+  const removeFromCart = (id) => setCart(cart.filter((item) => item.id !== id));
 
   const updateQuantity = (id, newQty) => {
     if (newQty < 1) return;
-    setCart(cart.map(item =>
-      item.id === id ? { ...item, qty: newQty } : item
-    ));
+    setCart(
+      cart.map((item) => (item.id === id ? { ...item, qty: newQty } : item))
+    );
   };
 
-  const total = cart.reduce((sum, item) => sum + item.sellingPrice * item.qty, 0);
+  const total = cart.reduce(
+    (sum, item) => sum + item.sellingPrice * item.qty,
+    0
+  );
 
   // Checkout
   const handleCheckout = async () => {
@@ -87,21 +93,20 @@ export default function POS() {
 
     try {
       const payload = {
-        items: cart.map(item => ({
+        items: cart.map((item) => ({
           productId: item.id,
-          quantity: item.qty
+          quantity: item.qty,
         })),
         paymentMethod,
-        discount: 0
+        discount: 0,
       };
-      console.log(payload);
 
       const res = await api.post("/sales", payload);
 
       setLastSale({
         ...res.data,
         items: cart,
-        paymentMethod
+        paymentMethod,
       });
 
       setShowReceipt(true);
@@ -117,9 +122,10 @@ export default function POS() {
     }
   };
 
-  const filteredProducts = products.filter(p =>
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (p.barcode && p.barcode.toLowerCase().includes(searchTerm.toLowerCase()))
+  const filteredProducts = products.filter(
+    (p) =>
+      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (p.barcode && p.barcode.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
@@ -132,7 +138,9 @@ export default function POS() {
           </div>
           <div>
             <h1 className="text-2xl font-bold">Nova POS</h1>
-            <p className="text-slate-400 text-sm">{user?.store?.name || "Demo Store"}</p>
+            <p className="text-slate-400 text-sm">
+              {user?.store?.name || "Demo Store"}
+            </p>
           </div>
         </div>
 
@@ -141,11 +149,26 @@ export default function POS() {
             <p className="font-semibold">{user?.name}</p>
             <p className="text-xs text-slate-400">{user?.role}</p>
           </div>
+
+          {hasPermission(user?.role, "dashboard") && (
+            <button
+              onClick={() => navigate("/admin")}
+              className="bg-slate-700 hover:bg-slate-600 px-5 py-2 rounded-lg text-sm flex items-center gap-2"
+            >
+              <LayoutDashboard size={18} />
+              Admin
+            </button>
+          )}
+
           <button
-            onClick={() => { logout(); navigate("/login"); }}
+            onClick={() => {
+              logout();
+              navigate("/login");
+            }}
             className="bg-red-600 hover:bg-red-700 px-5 py-2 rounded-lg text-sm flex items-center gap-2"
           >
-            <LogOut size={18} /> Logout
+            <LogOut size={18} />
+            Logout
           </button>
         </div>
       </div>
@@ -163,7 +186,11 @@ export default function POS() {
           </div>
         </div>
         <div className="text-slate-500 text-xs">
-          {new Date().toLocaleDateString('en-UG', { weekday: 'long', month: 'long', day: 'numeric' })}
+          {new Date().toLocaleDateString("en-UG", {
+            weekday: "long",
+            month: "long",
+            day: "numeric",
+          })}
         </div>
       </div>
 
@@ -173,7 +200,10 @@ export default function POS() {
           <div className="p-6 border-b">
             <div className="flex gap-4">
               <div className="flex-1 relative">
-                <Search className="absolute left-4 top-4 text-slate-400" size={20} />
+                <Search
+                  className="absolute left-4 top-4 text-slate-400"
+                  size={20}
+                />
                 <input
                   type="text"
                   placeholder="Search product or scan barcode..."
@@ -193,13 +223,15 @@ export default function POS() {
 
           <div className="flex-1 p-6 overflow-auto">
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {filteredProducts.map(product => (
+              {filteredProducts.map((product) => (
                 <div
                   key={product.id}
                   onClick={() => addToCart(product)}
                   className="bg-white border border-slate-200 hover:border-blue-500 hover:shadow-xl p-5 rounded-2xl cursor-pointer transition-all active:scale-95"
                 >
-                  <div className="font-semibold text-lg leading-tight mb-2">{product.name}</div>
+                  <div className="font-semibold text-lg leading-tight mb-2">
+                    {product.name}
+                  </div>
                   <div className="text-2xl font-bold text-blue-600">
                     UGX {product.sellingPrice.toLocaleString()}
                   </div>
@@ -227,25 +259,44 @@ export default function POS() {
                 <p className="mt-4">Cart is empty</p>
               </div>
             ) : (
-              cart.map(item => (
+              cart.map((item) => (
                 <div key={item.id} className="border rounded-2xl p-4">
                   <div className="flex justify-between items-start">
                     <div>
                       <p className="font-semibold">{item.name}</p>
-                      <p className="text-sm text-slate-500">UGX {item.sellingPrice}</p>
+                      <p className="text-sm text-slate-500">
+                        UGX {item.sellingPrice}
+                      </p>
                     </div>
-                    <button onClick={() => removeFromCart(item.id)} className="text-red-500">
+                    <button
+                      onClick={() => removeFromCart(item.id)}
+                      className="text-red-500"
+                    >
                       <X size={20} />
                     </button>
                   </div>
 
                   <div className="flex items-center justify-between mt-3">
                     <div className="flex items-center gap-3">
-                      <button onClick={() => updateQuantity(item.id, item.qty - 1)} className="w-8 h-8 border rounded-lg hover:bg-slate-100">-</button>
-                      <span className="font-bold w-6 text-center">{item.qty}</span>
-                      <button onClick={() => updateQuantity(item.id, item.qty + 1)} className="w-8 h-8 border rounded-lg hover:bg-slate-100">+</button>
+                      <button
+                        onClick={() => updateQuantity(item.id, item.qty - 1)}
+                        className="w-8 h-8 border rounded-lg hover:bg-slate-100"
+                      >
+                        -
+                      </button>
+                      <span className="font-bold w-6 text-center">
+                        {item.qty}
+                      </span>
+                      <button
+                        onClick={() => updateQuantity(item.id, item.qty + 1)}
+                        className="w-8 h-8 border rounded-lg hover:bg-slate-100"
+                      >
+                        +
+                      </button>
                     </div>
-                    <p className="font-bold">UGX {(item.sellingPrice * item.qty).toLocaleString()}</p>
+                    <p className="font-bold">
+                      UGX {(item.sellingPrice * item.qty).toLocaleString()}
+                    </p>
                   </div>
                 </div>
               ))
@@ -274,8 +325,8 @@ export default function POS() {
                     key={method}
                     onClick={() => setPaymentMethod(method)}
                     className={`py-3 rounded-2xl text-sm font-medium transition ${
-                      paymentMethod === method 
-                        ? "bg-blue-600 text-white" 
+                      paymentMethod === method
+                        ? "bg-blue-600 text-white"
                         : "bg-slate-100 hover:bg-slate-200"
                     }`}
                   >
@@ -308,12 +359,13 @@ export default function POS() {
         open={showReceipt}
         onClose={() => setShowReceipt(false)}
         sale={lastSale}
+        onVoided={fetchProducts}
       />
 
       {showScanner && (
         <BarcodeScanner
           onScan={(barcode) => {
-            const product = products.find(p => p.barcode === barcode);
+            const product = products.find((p) => p.barcode === barcode);
             if (product) {
               addToCart(product);
               toast.success(`Added ${product.name}`);

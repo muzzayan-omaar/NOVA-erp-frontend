@@ -1,16 +1,24 @@
-import { X, Printer, CheckCircle } from "lucide-react";
+import { useState } from "react";
+import { X, Printer, CheckCircle, Ban } from "lucide-react";
+import VoidRefundModal from "../../admin/modules/sales/VoidRefundModal";
+import { hasPermission } from "../../utils/hasPermission";
+import useAuthStore from "../../store/useAuthStore";
 
-export default function ReceiptModal({ open, onClose, sale }) {
+export default function ReceiptModal({ open, onClose, sale, onVoided }) {
+  const { user } = useAuthStore();
+  const [showVoidModal, setShowVoidModal] = useState(false);
+
   if (!open || !sale) return null;
 
-  const { 
-    items = [], 
-    totalAmount = 0, 
+  const {
+    items = [],
+    totalAmount = 0,
     subtotal = 0,
     vatAmount = 0,
-    paymentMethod = "CASH", 
+    paymentMethod = "CASH",
     createdAt,
-    fiscalReceiptId 
+    fiscalReceiptId,
+    status = "COMPLETED",
   } = sale;
 
   const date = createdAt ? new Date(createdAt) : new Date();
@@ -18,7 +26,7 @@ export default function ReceiptModal({ open, onClose, sale }) {
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
       <div className="bg-white w-[420px] rounded-3xl shadow-2xl overflow-hidden">
-        
+
         {/* Header */}
         <div className="bg-slate-900 text-white p-6 text-center">
           <CheckCircle className="mx-auto mb-3 text-green-400" size={48} />
@@ -32,6 +40,12 @@ export default function ReceiptModal({ open, onClose, sale }) {
             {date.toLocaleDateString('en-UG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}<br />
             {date.toLocaleTimeString('en-UG')}
           </div>
+
+          {status !== "COMPLETED" && (
+            <div className="text-center bg-red-100 text-red-600 py-2 rounded-xl mb-4 text-sm font-bold">
+              {status}
+            </div>
+          )}
 
           {/* Fiscal Receipt ID */}
           <div className="text-center bg-slate-100 py-2 rounded-xl mb-6 text-sm font-medium">
@@ -85,27 +99,51 @@ export default function ReceiptModal({ open, onClose, sale }) {
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t flex gap-3 bg-slate-50">
-          <button
-            onClick={() => window.print()}
-            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-2xl font-semibold flex items-center justify-center gap-2"
-          >
-            <Printer size={20} />
-            Print Receipt
-          </button>
+        <div className="p-6 border-t flex flex-col gap-3 bg-slate-50">
+          <div className="flex gap-3">
+            <button
+              onClick={() => window.print()}
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-2xl font-semibold flex items-center justify-center gap-2"
+            >
+              <Printer size={20} />
+              Print Receipt
+            </button>
 
-          <button
-            onClick={onClose}
-            className="flex-1 bg-slate-200 hover:bg-slate-300 py-4 rounded-2xl font-semibold"
-          >
-            Close
-          </button>
+            <button
+              onClick={onClose}
+              className="flex-1 bg-slate-200 hover:bg-slate-300 py-4 rounded-2xl font-semibold"
+            >
+              Close
+            </button>
+          </div>
+
+          {status === "COMPLETED" && sale.id && (
+            <button
+              onClick={() => setShowVoidModal(true)}
+              className="w-full flex items-center justify-center gap-2 text-red-600 py-3 rounded-2xl text-sm font-medium border border-red-200 hover:bg-red-50"
+            >
+              <Ban size={16} />
+              Made a mistake? Request a void
+            </button>
+          )}
         </div>
 
         <div className="text-center text-[10px] text-slate-400 pb-4">
           Thank You • Powered by Nova ERP Uganda
         </div>
       </div>
+
+      {showVoidModal && (
+        <VoidRefundModal
+          sale={sale}
+          mode="void"
+          onClose={() => setShowVoidModal(false)}
+          onSuccess={() => {
+            setShowVoidModal(false);
+            if (onVoided) onVoided();
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import useAuthStore from "../store/useAuthStore";
-import { ShoppingCart, LogOut, Search, X, Loader2, LayoutDashboard } from "lucide-react";
+import { ShoppingCart, LogOut, Search, X, Loader2, LayoutDashboard, WifiOff, CloudUpload, AlertCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import ReceiptModal from "../components/pos/ReceiptModal";
 import BarcodeScanner from "../components/pos/BarcodeScanner";
 import { hasPermission } from "../utils/hasPermission";
+import useOfflineSalesSync from "../hooks/useOfflineSalesSync";
+import { addToQueue } from "../utils/offlineQueue";
 
 export default function POS() {
   const [products, setProducts] = useState([]);
@@ -18,6 +20,7 @@ export default function POS() {
   const [paymentMethod, setPaymentMethod] = useState("CASH");
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+  const { isOnline, pendingCount, failedCount, syncNow } = useOfflineSalesSync();
 
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
@@ -26,7 +29,12 @@ export default function POS() {
   useEffect(() => {
     fetchProducts();
   }, []);
-
+  const generateClientId = () => {
+    if (typeof crypto !== "undefined" && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+    return `offline-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  };
   const fetchProducts = async () => {
     try {
       const res = await api.get("/products");
@@ -87,40 +95,81 @@ export default function POS() {
 
   // Checkout
   const handleCheckout = async () => {
-    if (cart.length === 0 || checkoutLoading) return;
+  if (cart.length === 0 || checkoutLoading) return;
 
-    setCheckoutLoading(true);
+  setCheckoutLoading(true);
 
-    try {
-      const payload = {
-        items: cart.map((item) => ({
-          productId: item.id,
-          quantity: item.qty,
-        })),
-        paymentMethod,
-        discount: 0,
-      };
+  const clientReferenceId = generateClientId();
 
-      const res = await api.post("/sales", payload);
+  const payload = {
+    items: cart.map(item => ({
+      productId: item.id,
+      quantity: item.qty
+    })),
+    paymentMethod,
+    discount: 0,
+    clientReferenceId,
+  };
+
+  try {
+    const res = await api.post("/sales", payload, { timeout: 8000 });
+
+    setLastSale({
+      ...res.data,
+      items: cart,
+      paymentMethod,
+      pending: false,
+    });
+
+    setShowReceipt(true);
+    setCart([]);
+    toast.success(`Sale completed via ${paymentMethod}`);
+
+    await fetchProducts();
+  } catch (err) {
+    console.error(err);
+
+    if (!err.response) {
+      // No response reached us at all — genuine connectivity failure.
+      // Queue it locally and let the cashier keep working.
+      addToQueue({
+        clientReferenceId,
+        payload,
+      });
+
+      // Optimistically reflect the sale locally so this device doesn't
+      // oversell the same stock again before it can sync.
+      setProducts((prev) =>
+        prev.map((p) => {
+          const cartItem = cart.find((c) => c.id === p.id);
+          if (!cartItem) return p;
+          return { ...p, stockQuantity: p.stockQuantity - cartItem.qty };
+        })
+      );
 
       setLastSale({
-        ...res.data,
+        id: clientReferenceId,
+        totalAmount: total,
+        subtotal: total / 1.18,
+        vatAmount: total - total / 1.18,
         items: cart,
         paymentMethod,
+        pending: true,
+        createdAt: new Date().toISOString(),
       });
 
       setShowReceipt(true);
       setCart([]);
-      toast.success(`Sale completed via ${paymentMethod}`);
-
-      await fetchProducts();
-    } catch (err) {
-      console.error(err);
+      toast.success("You're offline — sale saved and will sync automatically");
+    } else {
+      // A real response came back (insufficient stock, validation error, etc.)
+      // — this is not a connectivity issue, don't queue it.
       toast.error(err.response?.data?.message || "Checkout failed");
-    } finally {
-      setCheckoutLoading(false);
     }
-  };
+  } finally {
+    setCheckoutLoading(false);
+  }
+};
 
   const filteredProducts = products.filter(
     (p) =>
@@ -170,6 +219,36 @@ export default function POS() {
             <LogOut size={18} />
             Logout
           </button>
+          {(!isOnline || pendingCount > 0 || failedCount > 0) && (
+  <div className="bg-amber-50 border-b border-amber-200 px-6 py-2 flex items-center justify-between text-sm">
+    <div className="flex items-center gap-4">
+      {!isOnline && (
+        <span className="flex items-center gap-2 text-amber-700 font-medium">
+          <WifiOff size={16} /> Offline — sales are being queued
+        </span>
+      )}
+      {pendingCount > 0 && (
+        <span className="flex items-center gap-2 text-amber-700">
+          <CloudUpload size={16} /> {pendingCount} sale(s) waiting to sync
+        </span>
+      )}
+      {failedCount > 0 && (
+        <span className="flex items-center gap-2 text-red-600 font-medium">
+          <AlertCircle size={16} /> {failedCount} sale(s) need review
+        </span>
+      )}
+    </div>
+
+    {isOnline && (pendingCount > 0 || failedCount > 0) && (
+      <button
+        onClick={syncNow}
+        className="text-amber-700 underline text-sm font-medium"
+      >
+        Sync now
+      </button>
+    )}
+  </div>
+)}
         </div>
       </div>
 

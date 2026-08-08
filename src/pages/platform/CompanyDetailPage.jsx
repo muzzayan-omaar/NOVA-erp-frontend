@@ -1,0 +1,169 @@
+import { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import platformApi from "../../services/platformApi";
+import toast from "react-hot-toast";
+import { ArrowLeft, Building2, ShieldOff, ShieldCheck } from "lucide-react";
+
+export default function CompanyDetailPage() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+
+  const [company, setCompany] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
+
+  const fetchCompany = async () => {
+    try {
+      setLoading(true);
+      const res = await platformApi.get(`/platform/companies/${id}`);
+      setCompany(res.data);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to load company");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCompany();
+  }, [id]);
+
+  const toggleStatus = async () => {
+    const nextActive = !company.isActive;
+    const confirmMsg = nextActive
+      ? "Reactivate this company? Their staff will be able to log in again immediately."
+      : "Suspend this company? Every user there will be locked out immediately, including anyone currently logged in.";
+
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      setUpdating(true);
+      await platformApi.patch(`/platform/companies/${id}/status`, { isActive: nextActive });
+      toast.success(nextActive ? "Company reactivated" : "Company suspended");
+      fetchCompany();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to update status");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  if (loading) return <p className="text-center py-20">Loading...</p>;
+  if (!company) return <p className="text-center py-20">Company not found</p>;
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-6">
+      <button
+        onClick={() => navigate("/platform/companies")}
+        className="flex items-center gap-2 text-slate-500 hover:text-slate-700"
+      >
+        <ArrowLeft size={18} /> Back to Companies
+      </button>
+
+      <div className="bg-white rounded-3xl shadow p-8">
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-3">
+              <Building2 /> {company.name}
+            </h1>
+            <p className="text-slate-500 text-sm mt-1">
+              {company.email || "—"} · {company.phone || "—"} · {company.country || "—"}
+            </p>
+            <p className="text-slate-400 text-xs mt-1">
+              Joined {new Date(company.createdAt).toLocaleDateString()}
+            </p>
+          </div>
+
+          <button
+            onClick={toggleStatus}
+            disabled={updating}
+            className={`flex items-center gap-2 px-5 py-3 rounded-2xl font-semibold disabled:opacity-50 ${
+              company.isActive
+                ? "bg-red-600 text-white hover:bg-red-700"
+                : "bg-green-600 text-white hover:bg-green-700"
+            }`}
+          >
+            {company.isActive ? <ShieldOff size={18} /> : <ShieldCheck size={18} />}
+            {company.isActive ? "Suspend Company" : "Reactivate Company"}
+          </button>
+        </div>
+
+        {!company.isActive && (
+          <div className="mt-4 bg-red-50 text-red-700 px-4 py-3 rounded-2xl text-sm font-medium">
+            This company is currently suspended — no user there can log in or access the API.
+          </div>
+        )}
+      </div>
+
+      <div className="bg-white rounded-3xl shadow p-8">
+        <h2 className="text-lg font-bold mb-4">Subscription</h2>
+        {company.subscription ? (
+          <div className="grid grid-cols-3 gap-4 text-sm">
+            <div>
+              <p className="text-slate-500">Plan</p>
+              <p className="font-semibold">{company.subscription.plan}</p>
+            </div>
+            <div>
+              <p className="text-slate-500">Status</p>
+              <p className="font-semibold">{company.subscription.status}</p>
+            </div>
+            <div>
+              <p className="text-slate-500">Ends</p>
+              <p className="font-semibold">
+                {new Date(company.subscription.endDate).toLocaleDateString()}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <p className="text-slate-500 text-sm">No subscription record</p>
+        )}
+      </div>
+
+      <div className="bg-white rounded-3xl shadow p-8">
+        <h2 className="text-lg font-bold mb-4">Stores ({company.stores?.length ?? 0})</h2>
+        <div className="space-y-2">
+          {company.stores?.map((s) => (
+            <div key={s.id} className="flex justify-between text-sm border-b py-2">
+              <span>{s.name} {s.isHeadOffice && <span className="text-xs text-slate-400">(Head Office)</span>}</span>
+              <span className="text-slate-500">{s.location || "—"}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-white rounded-3xl shadow p-8">
+        <h2 className="text-lg font-bold mb-4">Users ({company.users?.length ?? 0})</h2>
+        <div className="space-y-2">
+          {company.users?.map((u) => (
+            <div key={u.id} className="flex justify-between items-center text-sm border-b py-2">
+              <div>
+                <span className="font-medium">{u.name}</span>
+                <span className="text-slate-400 ml-2">{u.email}</span>
+              </div>
+              <span className="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-600">
+                {u.role}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-white rounded-3xl shadow p-8">
+        <h2 className="text-lg font-bold mb-4">Payment History</h2>
+        {company.payments?.length === 0 ? (
+          <p className="text-slate-500 text-sm">No payments yet</p>
+        ) : (
+          <div className="space-y-2">
+            {company.payments?.map((p) => (
+              <div key={p.id} className="flex justify-between text-sm border-b py-2">
+                <span>UGX {Number(p.amount).toLocaleString()} — {p.method.replace("_", " ")}</span>
+                <span className="text-slate-500">{p.status.replace("_", " ")}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

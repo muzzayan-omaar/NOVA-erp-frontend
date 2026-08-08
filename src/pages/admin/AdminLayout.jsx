@@ -1,59 +1,90 @@
 import { useNavigate, Outlet, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import api from "../../services/api";
-import { LayoutDashboard, ClipboardList, Users, Package, DollarSign, ShoppingCart, Inbox, CreditCard, FileText, Receipt, LogOut, Boxes, Truck, UserCog, Building2, ShieldAlert } from "lucide-react";
+import {
+  LayoutDashboard,
+  ClipboardList,
+  Users,
+  Package,
+  DollarSign,
+  ShoppingCart,
+  Inbox,
+  CreditCard,
+  FileText,
+  Receipt,
+  LogOut,
+  Boxes,
+  Truck,
+  UserCog,
+  Building2,
+  ShieldAlert,
+  ChevronDown,
+} from "lucide-react";
 import useAuthStore from "../../store/useAuthStore";
 import toast from "react-hot-toast";
 import { hasPermission } from "../../utils/hasPermission";
-import { ChevronDown } from "lucide-react";
 import StoreSwitcher from "../../components/StoreSwitcher";
 import NotificationBell from "../../admin/modules/dashboard/components/NotificationBell";
 import NotificationDrawer from "../../admin/modules/dashboard/components/NotificationDrawer";
+import SubscriptionExpiredScreen from "../../admin/modules/billing/SubscriptionExpiredScreen";
 
 export default function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuthStore();
 
+  const [subStatus, setSubStatus] = useState(null);
+  const [subLoading, setSubLoading] = useState(true);
   const [stores, setStores] = useState([]);
   const [currentStore, setCurrentStore] = useState(null);
   const [switchingStore, setSwitchingStore] = useState(false);
   const [notifications, setNotifications] = useState([]);
-const [drawerOpen, setDrawerOpen] = useState(false);
-
-const fetchNotifications = async () => {
-  try {
-    const res = await api.get("/notifications");
-    setNotifications(res.data);
-  } catch (error) {
-    console.error("Notification fetch failed", error);
-  }
-};
-
-useEffect(() => {
-  fetchNotifications();
-
-  const interval = setInterval(() => {
-    fetchNotifications();
-  }, 30000);
-
-  return () => clearInterval(interval);
-}, []);
-
-  // Only one group open at a time
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [openGroup, setOpenGroup] = useState("Overview");
 
+  // ── Subscription status ──────────────────────────────────────
+  const fetchSubStatus = async () => {
+    try {
+      const res = await api.get("/subscription/status");
+      setSubStatus(res.data);
+    } catch (err) {
+      console.error("Subscription status check failed", err);
+    } finally {
+      setSubLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSubStatus();
+  }, []);
+
+  // ── Notifications ────────────────────────────────────────────
+  const fetchNotifications = async () => {
+    try {
+      const res = await api.get("/notifications");
+      setNotifications(res.data);
+    } catch (error) {
+      console.error("Notification fetch failed", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // ── Stores ───────────────────────────────────────────────────
   useEffect(() => {
     const fetchStores = async () => {
       try {
         const res = await api.get("/stores");
         setStores(res.data);
-        
+
         const currentRes = await api.get("/stores/current");
         setCurrentStore(currentRes.data);
       } catch (err) {
         console.error("STORE FETCH ERROR:", err.response?.data);
-
         if (err.response?.status === 401) {
           toast.error("Session expired. Please login again.");
           logout();
@@ -67,10 +98,8 @@ useEffect(() => {
   // Auto-open the group that contains the current page
   useEffect(() => {
     const currentPath = location.pathname;
-
     for (const group of menuGroups) {
-      const hasActiveItem = group.items.some(item => item.path === currentPath);
-      if (hasActiveItem) {
+      if (group.items.some((item) => item.path === currentPath)) {
         setOpenGroup(group.title);
         break;
       }
@@ -99,7 +128,10 @@ useEffect(() => {
   };
 
   const menuGroups = [
-    { title: "Overview", items: [{ title: "Dashboard", icon: LayoutDashboard, path: "/admin", permission: "dashboard" }] },
+    {
+      title: "Overview",
+      items: [{ title: "Dashboard", icon: LayoutDashboard, path: "/admin", permission: "dashboard" }],
+    },
     {
       title: "Business",
       items: [
@@ -129,6 +161,7 @@ useEffect(() => {
       title: "Finance",
       items: [
         { title: "Expenses", icon: DollarSign, path: "/admin/expenses", permission: "expenses" },
+        { title: "Billing", icon: CreditCard, path: "/admin/billing", permission: "billing" },
         { title: "Reports", icon: FileText, path: "/admin/reports", permission: "reports" },
       ],
     },
@@ -142,9 +175,28 @@ useEffect(() => {
   ];
 
   const handleGroupToggle = (title) => {
-    setOpenGroup(title); // Only one open at a time
+    setOpenGroup(title);
   };
 
+  // ── Early returns for subscription states ────────────────────
+  if (subLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-slate-100">
+        <p className="text-slate-400">Loading...</p>
+      </div>
+    );
+  }
+
+  if (subStatus && !subStatus.active && user?.role === "GENERAL_MANAGER") {
+    return (
+      <SubscriptionExpiredScreen
+        status={subStatus}
+        onRenewed={fetchSubStatus}
+      />
+    );
+  }
+
+  // ── Normal layout ────────────────────────────────────────────
   return (
     <div className="flex h-screen bg-slate-100">
       {/* Sidebar */}
@@ -178,20 +230,18 @@ useEffect(() => {
           </div>
         )}
 
-        {/* Scrollable Menu Area with Modern Scrollbar */}
+        {/* Scrollable Menu */}
         <div className="flex-1 overflow-y-auto p-3 space-y-1 custom-sidebar-scroll">
           {menuGroups.map((group) => {
             const visibleItems = group.items.filter((item) =>
               hasPermission(user?.role, item.permission)
             );
-
             if (visibleItems.length === 0) return null;
 
             const isOpen = openGroup === group.title;
 
             return (
               <div key={group.title}>
-                {/* Group Header */}
                 <button
                   onClick={() => handleGroupToggle(group.title)}
                   className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-800 transition-all duration-200 rounded-xl"
@@ -205,7 +255,6 @@ useEffect(() => {
                   />
                 </button>
 
-                {/* Dropdown Items */}
                 <div
                   className={`overflow-hidden transition-all duration-300 ${
                     isOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
@@ -214,7 +263,6 @@ useEffect(() => {
                   <div className="pl-3 pr-3 pb-2 space-y-1">
                     {visibleItems.map((item) => {
                       const isActive = location.pathname === item.path;
-
                       return (
                         <button
                           key={item.path}
@@ -227,10 +275,9 @@ useEffect(() => {
                         >
                           <item.icon
                             size={18}
-                            className={`${isActive ? "text-white" : "text-slate-400"}`}
+                            className={isActive ? "text-white" : "text-slate-400"}
                           />
                           <span className="font-medium">{item.title}</span>
-
                           {isActive && (
                             <div className="ml-auto w-1.5 h-1.5 bg-white rounded-full" />
                           )}
@@ -240,7 +287,6 @@ useEffect(() => {
                   </div>
                 </div>
 
-                {/* Subtle separator between groups */}
                 <div className="h-px bg-slate-800 mx-4 my-1" />
               </div>
             );
@@ -272,13 +318,38 @@ useEffect(() => {
         </div>
       </div>
 
-      
-
       {/* Main Content */}
-      <div className="flex-1 overflow-auto p-8">
-        <Outlet />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Trial banner (GM only) */}
+        {user?.role === "GENERAL_MANAGER" &&
+          subStatus?.active &&
+          subStatus.subscription?.status === "TRIALING" && (
+            <div className="bg-blue-600 text-white px-6 py-2 text-sm flex justify-between items-center shrink-0">
+              <span>
+                {Math.max(
+                  0,
+                  Math.ceil(
+                    (new Date(subStatus.subscription.endDate) - new Date()) /
+                      (1000 * 60 * 60 * 24)
+                  )
+                )}{" "}
+                day(s) left in your free trial
+              </span>
+              <button
+                onClick={() => navigate("/admin/billing")}
+                className="underline font-medium"
+              >
+                Upgrade now
+              </button>
+            </div>
+          )}
+
+        <div className="flex-1 overflow-auto p-8">
+          <Outlet />
+        </div>
       </div>
-       {/* Floating Notification Bell — visible on every /admin page */}
+
+      {/* Floating Notification Bell */}
       <div className="fixed bottom-6 right-8 z-30">
         <NotificationBell
           unreadCount={notifications.filter((n) => !n.isRead).length}
@@ -286,7 +357,7 @@ useEffect(() => {
         />
       </div>
 
-        <NotificationDrawer
+      <NotificationDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         notifications={notifications}

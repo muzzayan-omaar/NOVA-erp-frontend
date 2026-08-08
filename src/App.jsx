@@ -22,6 +22,16 @@ import AuditModule from "./admin/modules/AuditModule";
 import PendingRequestsModule from "./admin/modules/PendingRequestsModule";
 import StockCountModule from "./admin/modules/StockCountModule";
 import StockCountDetail from "./admin/modules/stock-count/StockCountDetail";
+import SubscriptionExpiredScreen from "./admin/modules/billing/SubscriptionExpiredScreen";
+import BillingModule from "./admin/modules/BillingModule";
+import PlatformPaymentsPage from "./pages/platform/PlatformPaymentsPage";
+import PlatformAuthGate from "./guards/PlatformAuthGate";
+import PlatformLogin from "./pages/platform/PlatformLogin";
+import PlatformLayout from "./pages/platform/PlatformLayout";
+import CompaniesListPage from "./pages/platform/CompaniesListPage";
+import CompanyDetailPage from "./pages/platform/CompanyDetailPage";
+import PlatformAnalyticsPage from "./pages/platform/PlatformAnalyticsPage";
+import PlatformPlansPage from "./pages/platform/PlatformPlansPage";
 
 import AuthGate from "./guards/AuthGate";
 import useAuthStore from "./store/useAuthStore";
@@ -34,43 +44,11 @@ export default function App() {
     hydrate();
   }, []);
 
-  useEffect(()=>{
-
-    const restoreSession=async()=>{
-
-        useAuthStore.getState().hydrate();
-
-        try{
-
-            const res =
-            await api.get("/auth/me");
-
-            useAuthStore.getState().setAuth(
-
-                res.data,
-
-                useAuthStore.getState().token
-
-            );
-
-        }
-
-        catch{
-
-            useAuthStore.getState().logout();
-
-        }
-
-    };
-
-    restoreSession();
-
-},[]);
-
-   return (
+  return (
     <Routes>
       {/* Public */}
       <Route path="/login" element={<Login />} />
+      <Route path="/platform/login" element={<PlatformLogin />} />
 
       {/* POS */}
       <Route
@@ -84,171 +62,181 @@ export default function App() {
 
       {/* Admin Area */}
       <Route
- path="/admin"
- element={
-   <AuthGate>
-     <AdminLayout />
-   </AuthGate>
-   
- }
->
+        path="/admin"
+        element={
+          <AuthGate>
+            <AdminLayout />
+          </AuthGate>
+        }
+      >
+        <Route
+          index
+          element={
+            <ProtectedRoute permission="dashboard">
+              <DashboardModule />
+            </ProtectedRoute>
+          }
+        />
 
-<Route 
-index 
-element={
-<ProtectedRoute permission="dashboard">
-<DashboardModule/>
-</ProtectedRoute>
-}
-/>
+        <Route
+          path="billing"
+          element={
+            <ProtectedRoute permission="billing">
+              <BillingModule />
+            </ProtectedRoute>
+          }
+        />
 
+        <Route
+          path="stores"
+          element={
+            <ProtectedRoute permission="stores">
+              <StoresModule />
+            </ProtectedRoute>
+          }
+        />
 
+        <Route
+          path="stock-count"
+          element={
+            <ProtectedRoute permission="inventory">
+              <StockCountModule />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="stock-count/:id"
+          element={
+            <ProtectedRoute permission="inventory">
+              <StockCountDetail />
+            </ProtectedRoute>
+          }
+        />
 
-<Route 
-path="stores"
-element={
-<ProtectedRoute permission="stores">
-<StoresModule/>
-</ProtectedRoute>
-}
-/>
+        <Route
+          path="pending-requests"
+          element={
+            <ProtectedRoute permission="audit">
+              <PendingRequestsModule />
+            </ProtectedRoute>
+          }
+        />
 
-<Route
-  path="stock-count"
-  element={
-    <ProtectedRoute permission="inventory">
-      <StockCountModule/>
-    </ProtectedRoute>
-  }
-/>
-<Route
-  path="stock-count/:id"
-  element={
-    <ProtectedRoute permission="inventory">
-      <StockCountDetail/>
-    </ProtectedRoute>
-  }
-/>
+        <Route
+          path="audit"
+          element={
+            <ProtectedRoute permission="audit">
+              <AuditModule />
+            </ProtectedRoute>
+          }
+        />
 
-<Route
-  path="pending-requests"
-  element={
-    <ProtectedRoute permission="audit">
-      <PendingRequestsModule/>
-    </ProtectedRoute>
-  }
-/>
+        <Route
+          path="products"
+          element={
+            <ProtectedRoute permission="products">
+              <ProductsModule />
+            </ProtectedRoute>
+          }
+        />
 
-<Route
-  path="audit"
-  element={
-    <ProtectedRoute permission="audit">
-      <AuditModule/>
-    </ProtectedRoute>
-  }
-/>
+        <Route
+          path="inventory"
+          element={
+            <ProtectedRoute permission="inventory">
+              <InventoryModule />
+            </ProtectedRoute>
+          }
+        />
 
-<Route 
-path="products"
-element={
-<ProtectedRoute permission="products">
-<ProductsModule/>
-</ProtectedRoute>
-}
-/>
+        <Route
+          path="sales"
+          element={
+            <ProtectedRoute permission="sales">
+              <SalesModule />
+            </ProtectedRoute>
+          }
+        />
 
+        <Route
+          path="payments"
+          element={
+            <ProtectedRoute permission="payments">
+              <PaymentsModule />
+            </ProtectedRoute>
+          }
+        />
 
-<Route 
-path="inventory"
-element={
-<ProtectedRoute permission="inventory">
-<InventoryModule/>
-</ProtectedRoute>
-}
-/>
+        <Route
+          path="users"
+          element={
+            <ProtectedRoute permission="users">
+              <UsersModule />
+            </ProtectedRoute>
+          }
+        />
 
+        <Route
+          path="customers"
+          element={
+            <ProtectedRoute permission="customers">
+              <CustomersModule />
+            </ProtectedRoute>
+          }
+        />
 
-<Route 
-path="sales"
-element={
-<ProtectedRoute permission="sales">
-<SalesModule/>
-</ProtectedRoute>
-}
-/>
+        <Route
+          path="expenses"
+          element={
+            <ProtectedRoute permission="expenses">
+              <ExpensesModule />
+            </ProtectedRoute>
+          }
+        />
 
+        <Route
+          path="suppliers"
+          element={
+            <ProtectedRoute permission="suppliers">
+              <SuppliersModule />
+            </ProtectedRoute>
+          }
+        />
 
-<Route 
-path="payments"
-element={
-<ProtectedRoute permission="payments">
-<PaymentsModule/>
-</ProtectedRoute>
-}
-/>
+        <Route
+          path="payroll"
+          element={
+            <ProtectedRoute permission="payroll">
+              <PayrollModule />
+            </ProtectedRoute>
+          }
+        />
 
+        <Route
+          path="reports"
+          element={
+            <ProtectedRoute permission="reports">
+              <ReportsModule />
+            </ProtectedRoute>
+          }
+        />
+      </Route>
 
-<Route 
-path="users"
-element={
-<ProtectedRoute permission="users">
-<UsersModule/>
-</ProtectedRoute>
-}
-/>
-
-
-<Route 
-path="customers"
-element={
-<ProtectedRoute permission="customers">
-<CustomersModule/>
-</ProtectedRoute>
-}
-/>
-
-
-<Route 
-path="expenses"
-element={
-<ProtectedRoute permission="expenses">
-<ExpensesModule/>
-</ProtectedRoute>
-}
-/>
-
-
-<Route 
-path="suppliers"
-element={
-<ProtectedRoute permission="suppliers">
-<SuppliersModule/>
-</ProtectedRoute>
-}
-/>
-
-
-<Route 
-path="payroll"
-element={
-<ProtectedRoute permission="payroll">
-<PayrollModule/>
-</ProtectedRoute>
-}
-/>
-
-
-<Route 
-path="reports"
-element={
-<ProtectedRoute permission="reports">
-<ReportsModule/>
-</ProtectedRoute>
-}
-/>
-
-
-</Route>
+      {/* Platform Area (sibling of admin, not nested) */}
+      <Route
+        path="/platform"
+        element={
+          <PlatformAuthGate>
+            <PlatformLayout />
+          </PlatformAuthGate>
+        }
+      >
+        <Route path="payments" element={<PlatformPaymentsPage />} />
+        <Route path="companies" element={<CompaniesListPage />} />
+        <Route path="companies/:id" element={<CompanyDetailPage />} />
+        <Route path="analytics" element={<PlatformAnalyticsPage />} />
+        <Route path="plans" element={<PlatformPlansPage />} />
+      </Route>
     </Routes>
   );
 }

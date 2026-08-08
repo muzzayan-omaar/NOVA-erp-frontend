@@ -19,6 +19,7 @@ export default function ReceiptModal({ open, onClose, sale, onVoided }) {
     createdAt,
     fiscalReceiptId,
     status = "COMPLETED",
+    pending = false,          // ← added
   } = sale;
 
   const date = createdAt ? new Date(createdAt) : new Date();
@@ -47,10 +48,16 @@ export default function ReceiptModal({ open, onClose, sale, onVoided }) {
             </div>
           )}
 
-          {/* Fiscal Receipt ID */}
-          <div className="text-center bg-slate-100 py-2 rounded-xl mb-6 text-sm font-medium">
-            Fiscal Receipt ID: <span className="font-mono">{fiscalReceiptId || 'NOVA-' + Date.now()}</span>
-          </div>
+          {/* Fiscal Receipt ID / Pending banner */}
+          {pending ? (
+            <div className="text-center bg-amber-100 text-amber-700 py-3 rounded-xl mb-6 text-sm font-semibold">
+              Queued — will sync automatically when back online
+            </div>
+          ) : (
+            <div className="text-center bg-slate-100 py-2 rounded-xl mb-6 text-sm font-medium">
+              Fiscal Receipt ID: <span className="font-mono">{fiscalReceiptId || 'NOVA-' + Date.now()}</span>
+            </div>
+          )}
 
           {/* Items */}
           <div className="space-y-3 max-h-[240px] overflow-y-auto pr-2">
@@ -117,7 +124,8 @@ export default function ReceiptModal({ open, onClose, sale, onVoided }) {
             </button>
           </div>
 
-          {status === "COMPLETED" && sale.id && (
+          {/* Hide void button for pending (offline) sales */}
+          {status === "COMPLETED" && sale.id && !pending && (
             <button
               onClick={() => setShowVoidModal(true)}
               className="w-full flex items-center justify-center gap-2 text-red-600 py-3 rounded-2xl text-sm font-medium border border-red-200 hover:bg-red-50"

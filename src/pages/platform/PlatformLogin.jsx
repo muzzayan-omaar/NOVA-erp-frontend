@@ -12,18 +12,24 @@ export default function PlatformLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e) => {
-    console.log("SUBMIT FIRED");
     e.preventDefault();
+    setError("");
     setLoading(true);
 
     try {
-      const res = await platformApi.post("/platform/auth/login", { email, password });
+      const res = await platformApi.post("/platform/auth/login", {
+        email,
+        password,
+      });
       setAuth(res.data.admin, res.data.token);
       navigate("/platform/payments");
     } catch (err) {
-      toast.error(err?.response?.data?.message || "Login failed");
+      const message = err?.response?.data?.message || "Login failed";
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -35,8 +41,16 @@ export default function PlatformLogin() {
         <div className="text-center mb-8">
           <ShieldCheck className="mx-auto text-blue-600 mb-3" size={44} />
           <h1 className="text-xl font-bold">Nova Platform Admin</h1>
-          <p className="text-slate-500 text-sm mt-1">Not a shop login — platform owner access only</p>
+          <p className="text-slate-500 text-sm mt-1">
+            Not a shop login — platform owner access only
+          </p>
         </div>
+
+        {error && (
+          <div className="bg-red-50 text-red-700 text-sm font-medium rounded-2xl px-4 py-3 mb-4 text-center">
+            {error}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -46,7 +60,10 @@ export default function PlatformLogin() {
               required
               className="w-full p-3 border rounded-2xl mt-1"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setError("");
+              }}
             />
           </div>
 

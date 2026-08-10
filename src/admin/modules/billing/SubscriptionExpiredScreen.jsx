@@ -1,17 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import api from "../../../services/api";
 import toast from "react-hot-toast";
 import { ShieldAlert, CheckCircle2 } from "lucide-react";
 
-const PLANS = [
-  { id: "BASIC", label: "Basic", price: "UGX 50,000 / month" },
-  { id: "STANDARD", label: "Standard", price: "UGX 100,000 / month" },
-  { id: "PREMIUM", label: "Premium", price: "UGX 180,000 / month" },
-];
-
 export default function SubscriptionExpiredScreen({ status, onRenewed }) {
+  const [plans, setPlans] = useState([]);
   const [form, setForm] = useState({
-    plan: "BASIC",
+    plan: "",
     amount: "",
     method: "MOBILE_MONEY",
     referenceNumber: "",
@@ -19,6 +14,18 @@ export default function SubscriptionExpiredScreen({ status, onRenewed }) {
   });
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    api
+      .get("/plans")
+      .then((res) => {
+        setPlans(res.data);
+        if (res.data.length > 0) {
+          setForm((f) => ({ ...f, plan: res.data[0].code }));
+        }
+      })
+      .catch((err) => console.error("Failed to load plans", err));
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -35,6 +42,7 @@ export default function SubscriptionExpiredScreen({ status, onRenewed }) {
         method: form.method,
         referenceNumber: form.referenceNumber,
         notes: form.notes,
+        // plan: form.plan,  // uncomment if backend expects the selected plan
       });
 
       setSubmitted(true);
@@ -65,7 +73,8 @@ export default function SubscriptionExpiredScreen({ status, onRenewed }) {
             <div className="text-center mb-6">
               <ShieldAlert className="mx-auto text-red-500 mb-3" size={48} />
               <h1 className="text-2xl font-bold">
-                {status?.reason === "EXPIRED" && status?.subscription?.plan === "TRIAL"
+                {status?.reason === "EXPIRED" &&
+                status?.subscription?.plan === "TRIAL"
                   ? "Your free trial has ended"
                   : "Your subscription has expired"}
               </h1>
@@ -76,19 +85,21 @@ export default function SubscriptionExpiredScreen({ status, onRenewed }) {
             </div>
 
             <div className="grid grid-cols-3 gap-3 mb-6">
-              {PLANS.map((p) => (
+              {plans.map((p) => (
                 <button
                   key={p.id}
                   type="button"
-                  onClick={() => setForm({ ...form, plan: p.id })}
+                  onClick={() => setForm({ ...form, plan: p.code })}
                   className={`p-4 rounded-2xl border text-center transition ${
-                    form.plan === p.id
+                    form.plan === p.code
                       ? "border-blue-600 bg-blue-50"
                       : "border-slate-200"
                   }`}
                 >
-                  <p className="font-semibold">{p.label}</p>
-                  <p className="text-xs text-slate-500 mt-1">{p.price}</p>
+                  <p className="font-semibold">{p.name}</p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    UGX {Number(p.price).toLocaleString()} / {p.durationDays} days
+                  </p>
                 </button>
               ))}
             </div>

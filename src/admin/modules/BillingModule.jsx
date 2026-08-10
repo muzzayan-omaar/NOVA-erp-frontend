@@ -3,12 +3,6 @@ import api from "../../services/api";
 import toast from "react-hot-toast";
 import { CreditCard, CheckCircle2, Clock, XCircle } from "lucide-react";
 
-const PLANS = [
-  { id: "BASIC", label: "Basic", price: "UGX 50,000 / month" },
-  { id: "STANDARD", label: "Standard", price: "UGX 100,000 / month" },
-  { id: "PREMIUM", label: "Premium", price: "UGX 180,000 / month" },
-];
-
 const statusStyles = {
   PENDING_VERIFICATION: { icon: Clock, className: "bg-amber-100 text-amber-600" },
   VERIFIED: { icon: CheckCircle2, className: "bg-green-100 text-green-600" },
@@ -18,10 +12,11 @@ const statusStyles = {
 export default function BillingModule() {
   const [status, setStatus] = useState(null);
   const [payments, setPayments] = useState([]);
+  const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
-    plan: "BASIC",
+    plan: "",
     amount: "",
     method: "MOBILE_MONEY",
     referenceNumber: "",
@@ -32,12 +27,14 @@ export default function BillingModule() {
   const fetchAll = async () => {
     try {
       setLoading(true);
-      const [statusRes, paymentsRes] = await Promise.all([
+      const [statusRes, paymentsRes, plansRes] = await Promise.all([
         api.get("/subscription/status"),
         api.get("/subscription/payments"),
+        api.get("/plans"),
       ]);
       setStatus(statusRes.data);
       setPayments(paymentsRes.data);
+      setPlans(plansRes.data);
     } catch (err) {
       console.error(err);
       toast.error("Failed to load billing info");
@@ -49,6 +46,13 @@ export default function BillingModule() {
   useEffect(() => {
     fetchAll();
   }, []);
+
+  // Set default selected plan once plans are loaded
+  useEffect(() => {
+    if (plans.length > 0 && !form.plan) {
+      setForm((f) => ({ ...f, plan: plans[0].code }));
+    }
+  }, [plans]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -65,11 +69,18 @@ export default function BillingModule() {
         method: form.method,
         referenceNumber: form.referenceNumber,
         notes: form.notes,
+        // plan: form.plan,  // uncomment if backend expects the selected plan
       });
 
       toast.success("Payment submitted for verification");
       setShowForm(false);
-      setForm({ plan: "BASIC", amount: "", method: "MOBILE_MONEY", referenceNumber: "", notes: "" });
+      setForm({
+        plan: plans[0]?.code || "",
+        amount: "",
+        method: "MOBILE_MONEY",
+        referenceNumber: "",
+        notes: "",
+      });
       fetchAll();
     } catch (err) {
       toast.error(err?.response?.data?.message || "Failed to submit payment");
@@ -125,17 +136,19 @@ export default function BillingModule() {
         {showForm && (
           <form onSubmit={handleSubmit} className="mt-6 bg-slate-50 p-6 rounded-2xl space-y-4">
             <div className="grid grid-cols-3 gap-3">
-              {PLANS.map((p) => (
+              {plans.map((p) => (
                 <button
                   key={p.id}
                   type="button"
-                  onClick={() => setForm({ ...form, plan: p.id })}
+                  onClick={() => setForm({ ...form, plan: p.code })}
                   className={`p-4 rounded-2xl border text-center transition ${
-                    form.plan === p.id ? "border-blue-600 bg-blue-50" : "border-slate-200"
+                    form.plan === p.code ? "border-blue-600 bg-blue-50" : "border-slate-200"
                   }`}
                 >
-                  <p className="font-semibold">{p.label}</p>
-                  <p className="text-xs text-slate-500 mt-1">{p.price}</p>
+                  <p className="font-semibold">{p.name}</p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    UGX {Number(p.price).toLocaleString()} / {p.durationDays} days
+                  </p>
                 </button>
               ))}
             </div>
@@ -216,7 +229,9 @@ export default function BillingModule() {
                       Ref: {p.referenceNumber} · {new Date(p.createdAt).toLocaleDateString()}
                     </p>
                   </div>
-                  <span className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold ${style.className}`}>
+                  <span
+                    className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold ${style.className}`}
+                  >
                     <Icon size={14} />
                     {p.status.replace("_", " ")}
                   </span>

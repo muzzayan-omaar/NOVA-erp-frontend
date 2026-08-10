@@ -344,6 +344,24 @@ export default function AdminLayout() {
             </div>
           )}
 
+          {user?.__investigation && (
+  <div className="bg-amber-500 text-white px-6 py-2 text-sm flex justify-between items-center">
+    <span>
+      🔍 Viewing as support — impersonating {user.name} at {user.__investigation.companyName}. Every action here is logged.
+    </span>
+    <button
+      onClick={() => {
+        logout();
+        window.close();
+        navigate("/platform/login");
+      }}
+      className="underline font-medium"
+    >
+      End Investigation
+    </button>
+  </div>
+)}
+
         <div className="flex-1 overflow-auto p-8">
           <Outlet />
         </div>

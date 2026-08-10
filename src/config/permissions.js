@@ -19,7 +19,8 @@ GENERAL_MANAGER:[
 "customers",
 "suppliers",
 "audit",
-"billing"
+"billing",
+"support"
 
 ],
 

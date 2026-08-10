@@ -1,12 +1,15 @@
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import usePlatformAuthStore from "../../store/usePlatformAuthStore";
-import { ShieldCheck, LogOut, Inbox, Building2, TrendingUp, CreditCard } from "lucide-react";
+import { ShieldCheck, LogOut, Inbox, Building2, TrendingUp, Tag, Megaphone, ShieldAlert, CreditCard } from "lucide-react";
+
 
 const menuItems = [
   { title: "Companies", icon: Building2, path: "/platform/companies" },
   { title: "Payments", icon: Inbox, path: "/platform/payments" },
   { title: "Analytics", icon: TrendingUp, path: "/platform/analytics" },
   { title: "Plans", icon: CreditCard, path: "/platform/plans" },
+  { title: "Broadcast", icon: Megaphone, path: "/platform/broadcast" },
+  { title: "Audit Log", icon: ShieldAlert, path: "/platform/audit-log" },
 ];
 
 export default function PlatformLayout() {

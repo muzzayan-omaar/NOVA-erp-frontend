@@ -32,6 +32,8 @@ import CompaniesListPage from "./pages/platform/CompaniesListPage";
 import CompanyDetailPage from "./pages/platform/CompanyDetailPage";
 import PlatformAnalyticsPage from "./pages/platform/PlatformAnalyticsPage";
 import PlatformPlansPage from "./pages/platform/PlatformPlansPage";
+import PlatformBroadcastPage from "./pages/platform/PlatformBroadcastPage";
+import PlatformAuditLogPage from "./pages/platform/PlatformAuditLogPage";
 
 import AuthGate from "./guards/AuthGate";
 import useAuthStore from "./store/useAuthStore";
@@ -236,6 +238,8 @@ export default function App() {
         <Route path="companies/:id" element={<CompanyDetailPage />} />
         <Route path="analytics" element={<PlatformAnalyticsPage />} />
         <Route path="plans" element={<PlatformPlansPage />} />
+        <Route path="broadcast" element={<PlatformBroadcastPage />} />
+        <Route path="audit-log" element={<PlatformAuditLogPage />} />
       </Route>
     </Routes>
   );

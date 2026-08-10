@@ -9,12 +9,14 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [companyId, setCompanyId] = useState("");
+  const [error, setError] = useState("");
 
   const navigate = useNavigate();
   const { setAuth } = useAuthStore();
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    setError("");
     setLoading(true);
 
     try {
@@ -27,18 +29,19 @@ export default function Login() {
       toast.success("Login successful!");
 
       // Role-based redirect
-      // Role-based redirect
-if (
- user.role === "GENERAL_MANAGER" ||
- user.role === "BRANCH_MANAGER"
-) {
-    navigate("/admin");
-} else {
-    navigate("/");
-}
+      if (
+        user.role === "GENERAL_MANAGER" ||
+        user.role === "BRANCH_MANAGER"
+      ) {
+        navigate("/admin");
+      } else {
+        navigate("/");
+      }
     } catch (err) {
       console.error(err);
-      toast.error(err.response?.data?.message || "Invalid credentials");
+      const message = err.response?.data?.message || "Invalid credentials";
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -50,13 +53,19 @@ if (
         <h1 className="text-3xl font-bold text-center mb-8">Nova ERP</h1>
         <p className="text-center text-slate-500 mb-8">Sign in to your account</p>
 
+        {error && (
+          <div className="bg-red-50 text-red-700 text-sm font-medium rounded-xl px-4 py-3 mb-6 text-center">
+            {error}
+          </div>
+        )}
+
         <form onSubmit={handleLogin} className="space-y-6">
           <input
             type="text"
             placeholder="Company ID"
             className="w-full p-4 border border-slate-300 rounded-xl focus:outline-none focus:border-blue-500"
             value={companyId}
-            onChange={(e) => setCompanyId(e.target.value)}
+            onChange={(e) => { setCompanyId(e.target.value); setError(""); }}
             required
           />
 
@@ -65,7 +74,7 @@ if (
             placeholder="Email Address"
             className="w-full p-4 border border-slate-300 rounded-xl focus:outline-none focus:border-blue-500"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => { setEmail(e.target.value); setError(""); }}
             required
           />
 
@@ -74,7 +83,7 @@ if (
             placeholder="Password"
             className="w-full p-4 border border-slate-300 rounded-xl focus:outline-none focus:border-blue-500"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => { setPassword(e.target.value); setError(""); }}
             required
           />
 

@@ -8,11 +8,13 @@ import useAuthStore from "../../store/useAuthStore";
 export default function CompanyDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const setTenantAuth = useAuthStore((s) => s.setAuth); // ← moved up here
+  const setTenantAuth = useAuthStore((s) => s.setAuth);
 
   const [company, setCompany] = useState(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const [editingCode, setEditingCode] = useState(false);
+  const [codeInput, setCodeInput] = useState("");
 
   const fetchCompany = async () => {
     try {
@@ -73,6 +75,19 @@ export default function CompanyDetailPage() {
     }
   };
 
+  const saveBusinessCode = async () => {
+    try {
+      await platformApi.patch(`/platform/companies/${id}/business-code`, {
+        businessCode: codeInput,
+      });
+      toast.success("Business code updated");
+      setEditingCode(false);
+      fetchCompany();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to update business code");
+    }
+  };
+
   // Early returns ONLY after all hooks
   if (loading) return <p className="text-center py-20">Loading...</p>;
   if (!company) return <p className="text-center py-20">Company not found</p>;
@@ -96,6 +111,47 @@ export default function CompanyDetailPage() {
               {company.email || "—"} · {company.phone || "—"} ·{" "}
               {company.country || "—"}
             </p>
+
+            {/* Business Code */}
+            <div className="mt-2 flex items-center gap-2">
+              {editingCode ? (
+                <>
+                  <input
+                    className="p-2 border rounded-xl text-sm font-mono uppercase"
+                    value={codeInput}
+                    onChange={(e) => setCodeInput(e.target.value)}
+                  />
+                  <button
+                    onClick={saveBusinessCode}
+                    className="text-sm bg-blue-600 text-white px-3 py-2 rounded-xl"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => setEditingCode(false)}
+                    className="text-sm px-3 py-2"
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <>
+                  <span className="font-mono bg-slate-100 px-3 py-1 rounded-lg text-sm font-semibold">
+                    {company.businessCode || "No code set"}
+                  </span>
+                  <button
+                    onClick={() => {
+                      setCodeInput(company.businessCode || "");
+                      setEditingCode(true);
+                    }}
+                    className="text-xs text-blue-600 underline"
+                  >
+                    Edit
+                  </button>
+                </>
+              )}
+            </div>
+
             <p className="text-slate-400 text-xs mt-1">
               Joined {new Date(company.createdAt).toLocaleDateString()}
             </p>

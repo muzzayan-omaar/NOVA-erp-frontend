@@ -182,7 +182,7 @@ err.response?.data?.message ||
             payrollRecords.map(record => (
               <div key={record.id} className="flex justify-between items-center p-5 border rounded-2xl">
                 <div>
-                  <p className="font-medium">record.user?.name</p>
+                  <p className="font-medium">{record.user?.name}</p>
                   <p className="text-xs text-slate-500">{record.month}</p>
                 </div>
                 <div className="text-right">

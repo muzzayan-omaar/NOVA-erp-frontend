@@ -1,7 +1,7 @@
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import usePlatformAuthStore from "../../store/usePlatformAuthStore";
-import { ShieldCheck, LogOut, Inbox, Building2, TrendingUp, Tag, Megaphone, ShieldAlert, CreditCard } from "lucide-react";
-
+import { ShieldCheck, LogOut, Inbox, Building2, TrendingUp, Tag, LifeBuoy, Megaphone, ShieldAlert, CreditCard } from "lucide-react";
+import logo from "../../assets/logo.png"; 
 
 const menuItems = [
   { title: "Companies", icon: Building2, path: "/platform/companies" },
@@ -10,6 +10,7 @@ const menuItems = [
   { title: "Plans", icon: CreditCard, path: "/platform/plans" },
   { title: "Broadcast", icon: Megaphone, path: "/platform/broadcast" },
   { title: "Audit Log", icon: ShieldAlert, path: "/platform/audit-log" },
+  { title: "Support", icon: LifeBuoy, path: "/platform/support" },
 ];
 
 export default function PlatformLayout() {
@@ -26,9 +27,13 @@ export default function PlatformLayout() {
     <div className="flex h-screen bg-slate-100">
       <div className="w-64 bg-slate-900 text-white flex flex-col">
         <div className="p-6 flex items-center gap-3 border-b border-slate-800">
-          <ShieldCheck className="text-blue-400" size={26} />
+           <img
+              src={logo}
+              alt="Nova ERP"
+              className="w-10 h-10 rounded-lg object-contain"
+            />
           <div>
-            <p className="font-bold">Nova Platform</p>
+            <p className="font-bold">Nova Portal</p>
             <p className="text-xs text-slate-400">{admin?.name}</p>
           </div>
         </div>

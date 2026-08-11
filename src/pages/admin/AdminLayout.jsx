@@ -19,6 +19,7 @@ import {
   Building2,
   ShieldAlert,
   ChevronDown,
+  LifeBuoy,
 } from "lucide-react";
 import useAuthStore from "../../store/useAuthStore";
 import toast from "react-hot-toast";
@@ -27,6 +28,8 @@ import StoreSwitcher from "../../components/StoreSwitcher";
 import NotificationBell from "../../admin/modules/dashboard/components/NotificationBell";
 import NotificationDrawer from "../../admin/modules/dashboard/components/NotificationDrawer";
 import SubscriptionExpiredScreen from "../../admin/modules/billing/SubscriptionExpiredScreen";
+
+import logo from "../../assets/logo.png"; 
 
 export default function AdminLayout() {
   const navigate = useNavigate();
@@ -172,6 +175,12 @@ export default function AdminLayout() {
         { title: "Audit Log", icon: ShieldAlert, path: "/admin/audit", permission: "audit" },
       ],
     },
+    {
+      title: "Help",
+      items: [
+        { title: "Support", icon: LifeBuoy, path: "/admin/support", permission: "support" },
+      ],
+    },
   ];
 
   const handleGroupToggle = (title) => {
@@ -201,10 +210,17 @@ export default function AdminLayout() {
     <div className="flex h-screen bg-slate-100">
       {/* Sidebar */}
       <div className="w-72 bg-slate-900 text-white flex flex-col border-r border-slate-800">
-        <div className="p-6 border-b border-slate-800">
-          <h1 className="text-2xl font-bold tracking-tight">Nova ERP</h1>
-          <p className="text-slate-400 text-sm">Business Control Center</p>
-        </div>
+        <div className="p-6 border-b border-slate-800 flex items-center gap-3">
+  <img
+    src={logo}
+    alt="Nova ERP"
+    className="w-10 h-10 rounded-lg object-contain"
+  />
+  <div>
+    <h1 className="text-xl font-bold tracking-tight leading-tight">Nova ERP</h1>
+    <p className="text-slate-400 text-xs">Business Control Center</p>
+  </div>
+</div>
 
         {/* Store Switcher */}
         {hasPermission(user?.role, "stores") && (

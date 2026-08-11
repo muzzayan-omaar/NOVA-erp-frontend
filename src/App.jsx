@@ -34,6 +34,11 @@ import PlatformAnalyticsPage from "./pages/platform/PlatformAnalyticsPage";
 import PlatformPlansPage from "./pages/platform/PlatformPlansPage";
 import PlatformBroadcastPage from "./pages/platform/PlatformBroadcastPage";
 import PlatformAuditLogPage from "./pages/platform/PlatformAuditLogPage";
+import SupportModule from "./admin/modules/SupportModule";
+import SupportThreadDetail from "./admin/modules/support/SupportThreadDetail";
+import PlatformSupportInboxPage from "./pages/platform/PlatformSupportInboxPage";
+import PlatformSupportThreadDetailPage from "./pages/platform/PlatformSupportThreadDetailPage";
+
 
 import AuthGate from "./guards/AuthGate";
 import useAuthStore from "./store/useAuthStore";
@@ -88,6 +93,22 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+  <Route
+  path="support"
+  element={
+    <ProtectedRoute permission="support">
+      <SupportModule/>
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="support/:id"
+  element={
+    <ProtectedRoute permission="support">
+      <SupportThreadDetail/>
+    </ProtectedRoute>
+  }
+/>
 
         <Route
           path="stores"
@@ -240,6 +261,8 @@ export default function App() {
         <Route path="plans" element={<PlatformPlansPage />} />
         <Route path="broadcast" element={<PlatformBroadcastPage />} />
         <Route path="audit-log" element={<PlatformAuditLogPage />} />
+        <Route path="support" element={<PlatformSupportInboxPage />} />
+        <Route path="support/:id" element={<PlatformSupportThreadDetailPage />} />
       </Route>
     </Routes>
   );

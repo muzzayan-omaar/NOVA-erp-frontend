@@ -8,7 +8,7 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [companyId, setCompanyId] = useState("");
+  const [businessCode, setBusinessCode] = useState("");
   const [error, setError] = useState("");
 
   const navigate = useNavigate();
@@ -20,7 +20,7 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const res = await api.post("/auth/login", { companyId, email, password });
+      const res = await api.post("/auth/login", { businessCode, email, password });
 
       const { token, user } = res.data;
 
@@ -28,7 +28,6 @@ export default function Login() {
 
       toast.success("Login successful!");
 
-      // Role-based redirect
       if (
         user.role === "GENERAL_MANAGER" ||
         user.role === "BRANCH_MANAGER"
@@ -62,10 +61,10 @@ export default function Login() {
         <form onSubmit={handleLogin} className="space-y-6">
           <input
             type="text"
-            placeholder="Company ID"
-            className="w-full p-4 border border-slate-300 rounded-xl focus:outline-none focus:border-blue-500"
-            value={companyId}
-            onChange={(e) => { setCompanyId(e.target.value); setError(""); }}
+            placeholder="Business Code (e.g. MBS4821)"
+            className="w-full p-4 border border-slate-300 rounded-xl focus:outline-none focus:border-blue-500 uppercase"
+            value={businessCode}
+            onChange={(e) => { setBusinessCode(e.target.value); setError(""); }}
             required
           />
 

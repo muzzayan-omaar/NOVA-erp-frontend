@@ -3,20 +3,27 @@ import platformApi from "../../services/platformApi";
 import toast from "react-hot-toast";
 import { Check, X as XIcon, Inbox } from "lucide-react";
 
-const PLANS = ["BASIC", "STANDARD", "PREMIUM"];
-
 export default function PlatformPaymentsPage() {
   const [payments, setPayments] = useState([]);
+  const [packages, setPackages] = useState([]);
+  const [cycles, setCycles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState(null);
-  const [selectedPlan, setSelectedPlan] = useState({});
+  const [selectedPackage, setSelectedPackage] = useState({});
+  const [selectedCycle, setSelectedCycle] = useState({});
   const [rejectingId, setRejectingId] = useState(null);
 
-  const fetchPayments = async () => {
+  const fetchAll = async () => {
     try {
       setLoading(true);
-      const res = await platformApi.get("/platform/payments/pending");
-      setPayments(res.data);
+      const [paymentsRes, pkgRes, cycleRes] = await Promise.all([
+        platformApi.get("/platform/payments/pending"),
+        platformApi.get("/platform/packages"),
+        platformApi.get("/platform/billing-cycles"),
+      ]);
+      setPayments(paymentsRes.data);
+      setPackages(pkgRes.data.filter((p) => p.isActive));
+      setCycles(cycleRes.data.filter((c) => c.isActive));
     } catch (err) {
       console.error(err);
       toast.error("Failed to load pending payments");
@@ -26,7 +33,7 @@ export default function PlatformPaymentsPage() {
   };
 
   useEffect(() => {
-    fetchPayments();
+    fetchAll();
   }, []);
 
   const handleApprove = async (id) => {
@@ -34,10 +41,11 @@ export default function PlatformPaymentsPage() {
       setProcessingId(id);
       await platformApi.post(`/platform/payments/${id}/verify`, {
         approve: true,
-        plan: selectedPlan[id] || "BASIC",
+        packageCode: selectedPackage[id] || "STARTER",
+        billingCycleCode: selectedCycle[id] || "MONTHLY",
       });
       toast.success("Payment verified — subscription activated");
-      fetchPayments();
+      fetchAll();
     } catch (err) {
       toast.error(err?.response?.data?.message || "Failed to verify payment");
     } finally {
@@ -51,7 +59,7 @@ export default function PlatformPaymentsPage() {
       await platformApi.post(`/platform/payments/${id}/verify`, { approve: false });
       toast.success("Payment rejected");
       setRejectingId(null);
-      fetchPayments();
+      fetchAll();
     } catch (err) {
       toast.error(err?.response?.data?.message || "Failed to reject payment");
     } finally {
@@ -127,13 +135,35 @@ export default function PlatformPaymentsPage() {
                 <div className="flex gap-3 mt-4 border-t pt-4 items-center">
                   <select
                     className="p-3 border rounded-2xl text-sm"
-                    value={selectedPlan[p.id] || "BASIC"}
+                    value={selectedPackage[p.id] || "STARTER"}
                     onChange={(e) =>
-                      setSelectedPlan({ ...selectedPlan, [p.id]: e.target.value })
+                      setSelectedPackage({
+                        ...selectedPackage,
+                        [p.id]: e.target.value,
+                      })
                     }
                   >
-                    {PLANS.map((plan) => (
-                      <option key={plan} value={plan}>{plan}</option>
+                    {packages.map((pkg) => (
+                      <option key={pkg.code} value={pkg.code}>
+                        {pkg.name}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    className="p-3 border rounded-2xl text-sm"
+                    value={selectedCycle[p.id] || "MONTHLY"}
+                    onChange={(e) =>
+                      setSelectedCycle({
+                        ...selectedCycle,
+                        [p.id]: e.target.value,
+                      })
+                    }
+                  >
+                    {cycles.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.name}
+                      </option>
                     ))}
                   </select>
 
@@ -151,7 +181,9 @@ export default function PlatformPaymentsPage() {
                     className="flex-1 flex items-center justify-center gap-2 text-sm font-medium text-white bg-green-600 px-4 py-3 rounded-2xl hover:bg-green-700 disabled:opacity-50"
                   >
                     <Check size={16} />
-                    {processingId === p.id ? "Processing..." : "Approve & Activate"}
+                    {processingId === p.id
+                      ? "Processing..."
+                      : "Approve & Activate"}
                   </button>
                 </div>
               )}

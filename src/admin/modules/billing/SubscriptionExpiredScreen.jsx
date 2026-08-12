@@ -4,9 +4,11 @@ import toast from "react-hot-toast";
 import { ShieldAlert, CheckCircle2 } from "lucide-react";
 
 export default function SubscriptionExpiredScreen({ status, onRenewed }) {
-  const [plans, setPlans] = useState([]);
+  const [packages, setPackages] = useState([]);
+  const [cycles, setCycles] = useState([]);
   const [form, setForm] = useState({
-    plan: "",
+    packageCode: "",
+    billingCycleCode: "",
     amount: "",
     method: "MOBILE_MONEY",
     referenceNumber: "",
@@ -17,14 +19,21 @@ export default function SubscriptionExpiredScreen({ status, onRenewed }) {
 
   useEffect(() => {
     api
-      .get("/plans")
+      .get("/catalog")
       .then((res) => {
-        setPlans(res.data);
-        if (res.data.length > 0) {
-          setForm((f) => ({ ...f, plan: res.data[0].code }));
+        setPackages(res.data.packages || []);
+        setCycles(res.data.billingCycles || []);
+        if (res.data.packages?.length > 0) {
+          setForm((f) => ({ ...f, packageCode: res.data.packages[0].code }));
+        }
+        if (res.data.billingCycles?.length > 0) {
+          setForm((f) => ({
+            ...f,
+            billingCycleCode: res.data.billingCycles[0].code,
+          }));
         }
       })
-      .catch((err) => console.error("Failed to load plans", err));
+      .catch((err) => console.error("Failed to load catalog", err));
   }, []);
 
   const handleSubmit = async (e) => {
@@ -42,7 +51,8 @@ export default function SubscriptionExpiredScreen({ status, onRenewed }) {
         method: form.method,
         referenceNumber: form.referenceNumber,
         notes: form.notes,
-        // plan: form.plan,  // uncomment if backend expects the selected plan
+        packageCode: form.packageCode,
+        billingCycleCode: form.billingCycleCode,
       });
 
       setSubmitted(true);
@@ -74,9 +84,9 @@ export default function SubscriptionExpiredScreen({ status, onRenewed }) {
               <ShieldAlert className="mx-auto text-red-500 mb-3" size={48} />
               <h1 className="text-2xl font-bold">
                 {status?.reason === "EXPIRED" &&
-                status?.subscription?.plan === "TRIAL"
-                  ? "Your free trial has ended"
-                  : "Your subscription has expired"}
+                  !status?.subscription?.packageId
+                    ? "Your free trial has ended"
+                    : "Your subscription has expired"}
               </h1>
               <p className="text-slate-500 mt-2">
                 Renew below to keep using Nova ERP. Your data is safe and
@@ -84,21 +94,45 @@ export default function SubscriptionExpiredScreen({ status, onRenewed }) {
               </p>
             </div>
 
-            <div className="grid grid-cols-3 gap-3 mb-6">
-              {plans.map((p) => (
+            {/* Package picker */}
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              {packages.map((p) => (
                 <button
-                  key={p.id}
+                  key={p.code}
                   type="button"
-                  onClick={() => setForm({ ...form, plan: p.code })}
+                  onClick={() => setForm({ ...form, packageCode: p.code })}
                   className={`p-4 rounded-2xl border text-center transition ${
-                    form.plan === p.code
+                    form.packageCode === p.code
                       ? "border-blue-600 bg-blue-50"
                       : "border-slate-200"
                   }`}
                 >
                   <p className="font-semibold">{p.name}</p>
                   <p className="text-xs text-slate-500 mt-1">
-                    UGX {Number(p.price).toLocaleString()} / {p.durationDays} days
+                    UGX {Number(p.price).toLocaleString()}/mo
+                  </p>
+                </button>
+              ))}
+            </div>
+
+            {/* Billing cycle picker */}
+            <div className="grid grid-cols-3 gap-3 mb-6">
+              {cycles.map((c) => (
+                <button
+                  key={c.code}
+                  type="button"
+                  onClick={() =>
+                    setForm({ ...form, billingCycleCode: c.code })
+                  }
+                  className={`p-4 rounded-2xl border text-center transition ${
+                    form.billingCycleCode === c.code
+                      ? "border-blue-600 bg-blue-50"
+                      : "border-slate-200"
+                  }`}
+                >
+                  <p className="font-semibold">{c.name}</p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Pay {c.payMonths}, get {c.bonusMonths} free
                   </p>
                 </button>
               ))}
@@ -129,7 +163,9 @@ export default function SubscriptionExpiredScreen({ status, onRenewed }) {
                     type="number"
                     className="w-full p-3 border rounded-2xl mt-1"
                     value={form.amount}
-                    onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, amount: e.target.value })
+                    }
                   />
                 </div>
                 <div>

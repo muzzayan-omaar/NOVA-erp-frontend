@@ -1,23 +1,30 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import useAuthStore from "../store/useAuthStore";
 
 export default function AuthGate({ children }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, hydrate } = useAuthStore();
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-  hydrate();
-  setChecking(false);
-}, [hydrate]);
-  
+    hydrate();
+    setChecking(false);
+  }, [hydrate]);
 
   useEffect(() => {
-    if (!checking && !user) {
+    if (checking) return;
+
+    if (!user) {
       navigate("/login");
+      return;
     }
-  }, [user, checking, navigate]);
+
+    if (user.mustChangePassword && location.pathname !== "/change-password") {
+      navigate("/change-password");
+    }
+  }, [user, checking, navigate, location.pathname]);
 
   if (checking) {
     return <div className="h-screen flex items-center justify-center">Loading...</div>;

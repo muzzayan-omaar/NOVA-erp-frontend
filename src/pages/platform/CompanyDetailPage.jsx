@@ -4,6 +4,7 @@ import platformApi from "../../services/platformApi";
 import toast from "react-hot-toast";
 import { ArrowLeft, Building2, ShieldOff, ShieldCheck } from "lucide-react";
 import useAuthStore from "../../store/useAuthStore";
+import AddBundleModal from "./AddBundleModal";
 
 export default function CompanyDetailPage() {
   const { id } = useParams();
@@ -13,6 +14,7 @@ export default function CompanyDetailPage() {
   const [company, setCompany] = useState(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const [showAddBundle, setShowAddBundle] = useState(false);
   const [editingCode, setEditingCode] = useState(false);
   const [codeInput, setCodeInput] = useState("");
 
@@ -193,28 +195,60 @@ export default function CompanyDetailPage() {
       </div>
 
       <div className="bg-white rounded-3xl shadow p-8">
-        <h2 className="text-lg font-bold mb-4">Subscription</h2>
-        {company.subscription ? (
-          <div className="grid grid-cols-3 gap-4 text-sm">
-            <div>
-              <p className="text-slate-500">Plan</p>
-              <p className="font-semibold">{company.subscription.plan}</p>
-            </div>
-            <div>
-              <p className="text-slate-500">Status</p>
-              <p className="font-semibold">{company.subscription.status}</p>
-            </div>
-            <div>
-              <p className="text-slate-500">Ends</p>
-              <p className="font-semibold">
-                {new Date(company.subscription.endDate).toLocaleDateString()}
-              </p>
-            </div>
-          </div>
-        ) : (
-          <p className="text-slate-500 text-sm">No subscription record</p>
-        )}
+  <div className="flex justify-between items-center mb-4">
+    <h2 className="text-lg font-bold">Subscription</h2>
+    <button
+      onClick={() => setShowAddBundle(true)}
+      className="text-sm bg-blue-600 text-white px-4 py-2 rounded-xl font-medium"
+    >
+      + Add Bundle
+    </button>
+  </div>
+
+  {company.subscription ? (
+    <>
+      <div className="grid grid-cols-3 gap-4 text-sm">
+        <div>
+          <p className="text-slate-500">Package</p>
+          <p className="font-semibold">{company.subscription.package?.name || "—"}</p>
+        </div>
+        <div>
+          <p className="text-slate-500">Status</p>
+          <p className="font-semibold">{company.subscription.status}</p>
+        </div>
+        <div>
+          <p className="text-slate-500">Ends</p>
+          <p className="font-semibold">
+            {new Date(company.subscription.endDate).toLocaleDateString()}
+          </p>
+        </div>
       </div>
+
+      {company.bundles?.length > 0 && (
+        <div className="mt-4 pt-4 border-t">
+          <p className="text-xs text-slate-500 mb-2">Extra bundles added</p>
+          <div className="flex flex-wrap gap-2">
+            {company.bundles.map((cb) => (
+              <span key={cb.id} className="text-xs bg-blue-50 text-blue-600 px-3 py-2 rounded-xl">
+                {cb.bundle.name}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  ) : (
+    <p className="text-slate-500 text-sm">No subscription record</p>
+  )}
+</div>
+
+{showAddBundle && (
+  <AddBundleModal
+    company={company}
+    onClose={() => setShowAddBundle(false)}
+    onSuccess={fetchCompany}
+  />
+)}
 
       <div className="bg-white rounded-3xl shadow p-8">
         <h2 className="text-lg font-bold mb-4">

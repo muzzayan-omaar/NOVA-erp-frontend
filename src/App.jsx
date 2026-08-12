@@ -31,13 +31,15 @@ import PlatformLayout from "./pages/platform/PlatformLayout";
 import CompaniesListPage from "./pages/platform/CompaniesListPage";
 import CompanyDetailPage from "./pages/platform/CompanyDetailPage";
 import PlatformAnalyticsPage from "./pages/platform/PlatformAnalyticsPage";
-import PlatformPlansPage from "./pages/platform/PlatformPlansPage";
+import PlatformCatalogPage from "./pages/platform/PlatformCatalogPage";
 import PlatformBroadcastPage from "./pages/platform/PlatformBroadcastPage";
 import PlatformAuditLogPage from "./pages/platform/PlatformAuditLogPage";
 import SupportModule from "./admin/modules/SupportModule";
 import SupportThreadDetail from "./admin/modules/support/SupportThreadDetail";
 import PlatformSupportInboxPage from "./pages/platform/PlatformSupportInboxPage";
 import PlatformSupportThreadDetailPage from "./pages/platform/PlatformSupportThreadDetailPage";
+import PlatformOnboardingWizard from "./pages/platform/PlatformOnboardingWizard";
+import ChangePasswordScreen from "./pages/ChangePasswordScreen";
 
 
 import AuthGate from "./guards/AuthGate";
@@ -66,6 +68,14 @@ export default function App() {
           </AuthGate>
         }
       />
+              <Route
+  path="/change-password"
+  element={
+    <AuthGate>
+      <ChangePasswordScreen />
+    </AuthGate>
+  }
+/>
 
       {/* Admin Area */}
       <Route
@@ -93,6 +103,7 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        
   <Route
   path="support"
   element={
@@ -258,11 +269,13 @@ export default function App() {
         <Route path="companies" element={<CompaniesListPage />} />
         <Route path="companies/:id" element={<CompanyDetailPage />} />
         <Route path="analytics" element={<PlatformAnalyticsPage />} />
-        <Route path="plans" element={<PlatformPlansPage />} />
+        <Route path="catalog" element={<PlatformCatalogPage />} />
         <Route path="broadcast" element={<PlatformBroadcastPage />} />
         <Route path="audit-log" element={<PlatformAuditLogPage />} />
         <Route path="support" element={<PlatformSupportInboxPage />} />
         <Route path="support/:id" element={<PlatformSupportThreadDetailPage />} />
+        <Route path="onboard" element={<PlatformOnboardingWizard />} />
+
       </Route>
     </Routes>
   );

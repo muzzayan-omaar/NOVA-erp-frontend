@@ -12,11 +12,13 @@ const statusStyles = {
 export default function BillingModule() {
   const [status, setStatus] = useState(null);
   const [payments, setPayments] = useState([]);
-  const [plans, setPlans] = useState([]);
+  const [packages, setPackages] = useState([]);
+  const [cycles, setCycles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
-    plan: "",
+    packageCode: "",
+    billingCycleCode: "",
     amount: "",
     method: "MOBILE_MONEY",
     referenceNumber: "",
@@ -27,14 +29,15 @@ export default function BillingModule() {
   const fetchAll = async () => {
     try {
       setLoading(true);
-      const [statusRes, paymentsRes, plansRes] = await Promise.all([
+      const [statusRes, paymentsRes, catalogRes] = await Promise.all([
         api.get("/subscription/status"),
         api.get("/subscription/payments"),
-        api.get("/plans"),
+        api.get("/catalog"),
       ]);
       setStatus(statusRes.data);
       setPayments(paymentsRes.data);
-      setPlans(plansRes.data);
+      setPackages(catalogRes.data.packages);
+      setCycles(catalogRes.data.billingCycles);
     } catch (err) {
       console.error(err);
       toast.error("Failed to load billing info");
@@ -47,12 +50,14 @@ export default function BillingModule() {
     fetchAll();
   }, []);
 
-  // Set default selected plan once plans are loaded
   useEffect(() => {
-    if (plans.length > 0 && !form.plan) {
-      setForm((f) => ({ ...f, plan: plans[0].code }));
+    if (packages.length > 0 && !form.packageCode) {
+      setForm((f) => ({ ...f, packageCode: packages[0].code }));
     }
-  }, [plans]);
+    if (cycles.length > 0 && !form.billingCycleCode) {
+      setForm((f) => ({ ...f, billingCycleCode: cycles[0].code }));
+    }
+  }, [packages, cycles]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -69,13 +74,15 @@ export default function BillingModule() {
         method: form.method,
         referenceNumber: form.referenceNumber,
         notes: form.notes,
-        // plan: form.plan,  // uncomment if backend expects the selected plan
+        packageCode: form.packageCode,
+        billingCycleCode: form.billingCycleCode,
       });
 
       toast.success("Payment submitted for verification");
       setShowForm(false);
       setForm({
-        plan: plans[0]?.code || "",
+        packageCode: packages[0]?.code || "",
+        billingCycleCode: cycles[0]?.code || "",
         amount: "",
         method: "MOBILE_MONEY",
         referenceNumber: "",
@@ -95,7 +102,10 @@ export default function BillingModule() {
 
   const sub = status?.subscription;
   const daysLeft = sub
-    ? Math.max(0, Math.ceil((new Date(sub.endDate) - new Date()) / (1000 * 60 * 60 * 24)))
+    ? Math.max(
+        0,
+        Math.ceil((new Date(sub.endDate) - new Date()) / (1000 * 60 * 60 * 24))
+      )
     : 0;
 
   return (
@@ -107,11 +117,13 @@ export default function BillingModule() {
       <div className="bg-white rounded-3xl shadow p-8">
         <div className="flex justify-between items-start">
           <div>
-            <p className="text-sm text-slate-500">Current Plan</p>
-            <p className="text-2xl font-bold">{sub?.plan || "—"}</p>
+            <p className="text-sm text-slate-500">Current Package</p>
+            <p className="text-2xl font-bold">{sub?.package?.name || "No package yet"}</p>
             <span
               className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold ${
-                status?.active ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"
+                status?.active
+                  ? "bg-green-100 text-green-600"
+                  : "bg-red-100 text-red-600"
               }`}
             >
               {sub?.status || "NO SUBSCRIPTION"}
@@ -120,7 +132,9 @@ export default function BillingModule() {
 
           <div className="text-right">
             <p className="text-sm text-slate-500">
-              {sub?.status === "TRIALING" ? "Trial ends in" : "Renews in / Expires in"}
+              {sub?.status === "TRIALING"
+                ? "Trial ends in"
+                : "Renews in / Expires in"}
             </p>
             <p className="text-2xl font-bold">{daysLeft} day(s)</p>
           </div>
@@ -134,27 +148,56 @@ export default function BillingModule() {
         </button>
 
         {showForm && (
-          <form onSubmit={handleSubmit} className="mt-6 bg-slate-50 p-6 rounded-2xl space-y-4">
-            <div className="grid grid-cols-3 gap-3">
-              {plans.map((p) => (
+          <form
+            onSubmit={handleSubmit}
+            className="mt-6 bg-slate-50 p-6 rounded-2xl space-y-4"
+          >
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              {packages.map((p) => (
                 <button
-                  key={p.id}
+                  key={p.code}
                   type="button"
-                  onClick={() => setForm({ ...form, plan: p.code })}
+                  onClick={() => setForm({ ...form, packageCode: p.code })}
                   className={`p-4 rounded-2xl border text-center transition ${
-                    form.plan === p.code ? "border-blue-600 bg-blue-50" : "border-slate-200"
+                    form.packageCode === p.code
+                      ? "border-blue-600 bg-blue-50"
+                      : "border-slate-200"
                   }`}
                 >
                   <p className="font-semibold">{p.name}</p>
                   <p className="text-xs text-slate-500 mt-1">
-                    UGX {Number(p.price).toLocaleString()} / {p.durationDays} days
+                    UGX {Number(p.price).toLocaleString()}/mo
+                  </p>
+                </button>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-3 gap-3 mb-6">
+              {cycles.map((c) => (
+                <button
+                  key={c.code}
+                  type="button"
+                  onClick={() =>
+                    setForm({ ...form, billingCycleCode: c.code })
+                  }
+                  className={`p-4 rounded-2xl border text-center transition ${
+                    form.billingCycleCode === c.code
+                      ? "border-blue-600 bg-blue-50"
+                      : "border-slate-200"
+                  }`}
+                >
+                  <p className="font-semibold">{c.name}</p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Pay {c.payMonths}, get {c.bonusMonths} free
                   </p>
                 </button>
               ))}
             </div>
 
             <div>
-              <label className="text-sm font-medium text-slate-700">Payment Method</label>
+              <label className="text-sm font-medium text-slate-700">
+                Payment Method
+              </label>
               <select
                 className="w-full p-3 border rounded-2xl mt-1"
                 value={form.method}
@@ -168,28 +211,38 @@ export default function BillingModule() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-sm font-medium text-slate-700">Amount Paid (UGX)</label>
+                <label className="text-sm font-medium text-slate-700">
+                  Amount Paid (UGX)
+                </label>
                 <input
                   type="number"
                   className="w-full p-3 border rounded-2xl mt-1"
                   value={form.amount}
-                  onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, amount: e.target.value })
+                  }
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-slate-700">Transaction Reference</label>
+                <label className="text-sm font-medium text-slate-700">
+                  Transaction Reference
+                </label>
                 <input
                   type="text"
                   className="w-full p-3 border rounded-2xl mt-1"
                   placeholder="e.g. MM240912.1234"
                   value={form.referenceNumber}
-                  onChange={(e) => setForm({ ...form, referenceNumber: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, referenceNumber: e.target.value })
+                  }
                 />
               </div>
             </div>
 
             <div>
-              <label className="text-sm font-medium text-slate-700">Notes (optional)</label>
+              <label className="text-sm font-medium text-slate-700">
+                Notes (optional)
+              </label>
               <textarea
                 className="w-full p-3 border rounded-2xl mt-1"
                 rows={2}
@@ -213,20 +266,28 @@ export default function BillingModule() {
         <h2 className="text-xl font-bold mb-4">Payment History</h2>
 
         {payments.length === 0 ? (
-          <p className="text-slate-500 text-center py-10">No payments submitted yet</p>
+          <p className="text-slate-500 text-center py-10">
+            No payments submitted yet
+          </p>
         ) : (
           <div className="space-y-3">
             {payments.map((p) => {
-              const style = statusStyles[p.status] || statusStyles.PENDING_VERIFICATION;
+              const style =
+                statusStyles[p.status] || statusStyles.PENDING_VERIFICATION;
               const Icon = style.icon;
               return (
-                <div key={p.id} className="flex justify-between items-center border rounded-2xl p-4">
+                <div
+                  key={p.id}
+                  className="flex justify-between items-center border rounded-2xl p-4"
+                >
                   <div>
                     <p className="font-medium">
-                      UGX {Number(p.amount).toLocaleString()} — {p.method.replace("_", " ")}
+                      UGX {Number(p.amount).toLocaleString()} —{" "}
+                      {p.method.replace("_", " ")}
                     </p>
                     <p className="text-xs text-slate-500">
-                      Ref: {p.referenceNumber} · {new Date(p.createdAt).toLocaleDateString()}
+                      Ref: {p.referenceNumber} ·{" "}
+                      {new Date(p.createdAt).toLocaleDateString()}
                     </p>
                   </div>
                   <span

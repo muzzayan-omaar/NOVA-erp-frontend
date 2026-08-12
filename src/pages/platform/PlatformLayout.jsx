@@ -1,13 +1,14 @@
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import usePlatformAuthStore from "../../store/usePlatformAuthStore";
-import { ShieldCheck, LogOut, Inbox, Building2, TrendingUp, Tag, LifeBuoy, Megaphone, ShieldAlert, CreditCard } from "lucide-react";
+import { ShieldCheck, Sparkles, LogOut, Inbox, Building2, TrendingUp, Tag, LifeBuoy, Megaphone, ShieldAlert, CreditCard } from "lucide-react";
 import logo from "../../assets/logo.png"; 
 
 const menuItems = [
+  { title: "Onboard Company", icon: Sparkles, path: "/platform/onboard" },
   { title: "Companies", icon: Building2, path: "/platform/companies" },
   { title: "Payments", icon: Inbox, path: "/platform/payments" },
   { title: "Analytics", icon: TrendingUp, path: "/platform/analytics" },
-  { title: "Plans", icon: CreditCard, path: "/platform/plans" },
+  { title: "Catalog", icon: CreditCard, path: "/platform/catalog" },
   { title: "Broadcast", icon: Megaphone, path: "/platform/broadcast" },
   { title: "Audit Log", icon: ShieldAlert, path: "/platform/audit-log" },
   { title: "Support", icon: LifeBuoy, path: "/platform/support" },

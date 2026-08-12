@@ -29,7 +29,7 @@ import NotificationBell from "../../admin/modules/dashboard/components/Notificat
 import NotificationDrawer from "../../admin/modules/dashboard/components/NotificationDrawer";
 import SubscriptionExpiredScreen from "../../admin/modules/billing/SubscriptionExpiredScreen";
 
-import logo from "../../assets/logo.png"; 
+import logo from "../../assets/logo.png";
 
 export default function AdminLayout() {
   const navigate = useNavigate();
@@ -38,6 +38,7 @@ export default function AdminLayout() {
 
   const [subStatus, setSubStatus] = useState(null);
   const [subLoading, setSubLoading] = useState(true);
+  const [entitlements, setEntitlements] = useState(null);
   const [stores, setStores] = useState([]);
   const [currentStore, setCurrentStore] = useState(null);
   const [switchingStore, setSwitchingStore] = useState(false);
@@ -59,6 +60,14 @@ export default function AdminLayout() {
 
   useEffect(() => {
     fetchSubStatus();
+  }, []);
+
+  // ── Entitlements (plan feature access) ──────────────────────
+  useEffect(() => {
+    api
+      .get("/catalog/my-entitlements")
+      .then((res) => setEntitlements(res.data))
+      .catch(() => {});
   }, []);
 
   // ── Notifications ────────────────────────────────────────────
@@ -133,52 +142,139 @@ export default function AdminLayout() {
   const menuGroups = [
     {
       title: "Overview",
-      items: [{ title: "Dashboard", icon: LayoutDashboard, path: "/admin", permission: "dashboard" }],
+      items: [
+        {
+          title: "Dashboard",
+          icon: LayoutDashboard,
+          path: "/admin",
+          permission: "dashboard",
+        },
+      ],
     },
     {
       title: "Business",
       items: [
-        { title: "Stores", icon: Building2, path: "/admin/stores", permission: "stores" },
-        { title: "Users", icon: UserCog, path: "/admin/users", permission: "users" },
-        { title: "Payroll", icon: Receipt, path: "/admin/payroll", permission: "payroll" },
+        {
+          title: "Stores",
+          icon: Building2,
+          path: "/admin/stores",
+          permission: "stores",
+        },
+        {
+          title: "Users",
+          icon: UserCog,
+          path: "/admin/users",
+          permission: "users",
+        },
+        {
+          title: "Payroll",
+          icon: Receipt,
+          path: "/admin/payroll",
+          permission: "payroll",
+        },
       ],
     },
     {
       title: "Inventory",
       items: [
-        { title: "Products", icon: Package, path: "/admin/products", permission: "products" },
-        { title: "Inventory", icon: Boxes, path: "/admin/inventory", permission: "inventory" },
-        { title: "Stock Count", icon: ClipboardList, path: "/admin/stock-count", permission: "inventory" },
-        { title: "Suppliers", icon: Truck, path: "/admin/suppliers", permission: "suppliers" },
+        {
+          title: "Products",
+          icon: Package,
+          path: "/admin/products",
+          permission: "products",
+        },
+        {
+          title: "Inventory",
+          icon: Boxes,
+          path: "/admin/inventory",
+          permission: "inventory",
+        },
+        {
+          title: "Stock Count",
+          icon: ClipboardList,
+          path: "/admin/stock-count",
+          permission: "inventory",
+        },
+        {
+          title: "Suppliers",
+          icon: Truck,
+          path: "/admin/suppliers",
+          permission: "suppliers",
+        },
       ],
     },
     {
       title: "Sales",
       items: [
-        { title: "Sales", icon: ShoppingCart, path: "/admin/sales", permission: "sales" },
-        { title: "Customers", icon: Users, path: "/admin/customers", permission: "customers" },
-        { title: "Payments", icon: CreditCard, path: "/admin/payments", permission: "payments" },
+        {
+          title: "Sales",
+          icon: ShoppingCart,
+          path: "/admin/sales",
+          permission: "sales",
+        },
+        {
+          title: "Customers",
+          icon: Users,
+          path: "/admin/customers",
+          permission: "customers",
+        },
+        {
+          title: "Payments",
+          icon: CreditCard,
+          path: "/admin/payments",
+          permission: "payments",
+        },
       ],
     },
     {
       title: "Finance",
       items: [
-        { title: "Expenses", icon: DollarSign, path: "/admin/expenses", permission: "expenses" },
-        { title: "Billing", icon: CreditCard, path: "/admin/billing", permission: "billing" },
-        { title: "Reports", icon: FileText, path: "/admin/reports", permission: "reports" },
+        {
+          title: "Expenses",
+          icon: DollarSign,
+          path: "/admin/expenses",
+          permission: "expenses",
+        },
+        {
+          title: "Billing",
+          icon: CreditCard,
+          path: "/admin/billing",
+          permission: "billing",
+        },
+        {
+          title: "Reports",
+          icon: FileText,
+          path: "/admin/reports",
+          permission: "reports",
+        },
       ],
     },
     {
       title: "Oversight",
       items: [
-        { title: "Pending Requests", icon: Inbox, path: "/admin/pending-requests", permission: "audit" },
-        { title: "Audit Log", icon: ShieldAlert, path: "/admin/audit", permission: "audit" },
+        {
+          title: "Pending Requests",
+          icon: Inbox,
+          path: "/admin/pending-requests",
+          permission: "audit",
+        },
+        {
+          title: "Audit Log",
+          icon: ShieldAlert,
+          path: "/admin/audit",
+          permission: "audit",
+        },
       ],
     },
     {
       title: "Help",
       items: [
-        { title: "Support", icon: LifeBuoy, path: "/admin/support", permission: "support" },
+        {
+          title: "Support",
+          icon: LifeBuoy,
+          path: "/admin/support",
+          permission: "support",
+        },
       ],
     },
   ];
@@ -211,16 +307,18 @@ export default function AdminLayout() {
       {/* Sidebar */}
       <div className="w-72 bg-slate-900 text-white flex flex-col border-r border-slate-800">
         <div className="p-6 border-b border-slate-800 flex items-center gap-3">
-  <img
-    src={logo}
-    alt="Nova ERP"
-    className="w-10 h-10 rounded-lg object-contain"
-  />
-  <div>
-    <h1 className="text-xl font-bold tracking-tight leading-tight">Nova ERP</h1>
-    <p className="text-slate-400 text-xs">Business Control Center</p>
-  </div>
-</div>
+          <img
+            src={logo}
+            alt="Nova ERP"
+            className="w-10 h-10 rounded-lg object-contain"
+          />
+          <div>
+            <h1 className="text-xl font-bold tracking-tight leading-tight">
+              Nova ERP
+            </h1>
+            <p className="text-slate-400 text-xs">Business Control Center</p>
+          </div>
+        </div>
 
         {/* Store Switcher */}
         {hasPermission(user?.role, "stores") && (
@@ -249,8 +347,11 @@ export default function AdminLayout() {
         {/* Scrollable Menu */}
         <div className="flex-1 overflow-y-auto p-3 space-y-1 custom-sidebar-scroll">
           {menuGroups.map((group) => {
-            const visibleItems = group.items.filter((item) =>
-              hasPermission(user?.role, item.permission)
+            const visibleItems = group.items.filter(
+              (item) =>
+                hasPermission(user?.role, item.permission) &&
+                (!entitlements ||
+                  entitlements.featureKeys.includes(item.permission))
             );
             if (visibleItems.length === 0) return null;
 
@@ -267,7 +368,9 @@ export default function AdminLayout() {
                   </span>
                   <ChevronDown
                     size={18}
-                    className={`transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`}
+                    className={`transition-transform duration-300 ${
+                      isOpen ? "rotate-180" : ""
+                    }`}
                   />
                 </button>
 
@@ -291,7 +394,9 @@ export default function AdminLayout() {
                         >
                           <item.icon
                             size={18}
-                            className={isActive ? "text-white" : "text-slate-400"}
+                            className={
+                              isActive ? "text-white" : "text-slate-400"
+                            }
                           />
                           <span className="font-medium">{item.title}</span>
                           {isActive && (
@@ -360,23 +465,24 @@ export default function AdminLayout() {
             </div>
           )}
 
-          {user?.__investigation && (
-  <div className="bg-amber-500 text-white px-6 py-2 text-sm flex justify-between items-center">
-    <span>
-      🔍 Viewing as support — impersonating {user.name} at {user.__investigation.companyName}. Every action here is logged.
-    </span>
-    <button
-      onClick={() => {
-        logout();
-        window.close();
-        navigate("/platform/login");
-      }}
-      className="underline font-medium"
-    >
-      End Investigation
-    </button>
-  </div>
-)}
+        {user?.__investigation && (
+          <div className="bg-amber-500 text-white px-6 py-2 text-sm flex justify-between items-center">
+            <span>
+              🔍 Viewing as support — impersonating {user.name} at{" "}
+              {user.__investigation.companyName}. Every action here is logged.
+            </span>
+            <button
+              onClick={() => {
+                logout();
+                window.close();
+                navigate("/platform/login");
+              }}
+              className="underline font-medium"
+            >
+              End Investigation
+            </button>
+          </div>
+        )}
 
         <div className="flex-1 overflow-auto p-8">
           <Outlet />

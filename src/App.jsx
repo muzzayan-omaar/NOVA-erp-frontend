@@ -40,6 +40,8 @@ import PlatformSupportInboxPage from "./pages/platform/PlatformSupportInboxPage"
 import PlatformSupportThreadDetailPage from "./pages/platform/PlatformSupportThreadDetailPage";
 import PlatformOnboardingWizard from "./pages/platform/PlatformOnboardingWizard";
 import ChangePasswordScreen from "./pages/ChangePasswordScreen";
+import TermsPage from "./pages/TermsPage";
+import PrivacyPage from "./pages/PrivacyPage";
 
 
 import AuthGate from "./guards/AuthGate";
@@ -58,6 +60,8 @@ export default function App() {
       {/* Public */}
       <Route path="/login" element={<Login />} />
       <Route path="/platform/login" element={<PlatformLogin />} />
+      <Route path="/terms" element={<TermsPage />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
 
       {/* POS */}
       <Route

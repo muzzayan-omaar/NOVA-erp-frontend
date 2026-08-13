@@ -34,8 +34,7 @@ api.interceptors.response.use(
     if (error.response?.status === 402) {
       toast.error(error.response.data?.message || "Subscription expired");
 
-      const { user } = useAuthStore.getState();
-      const role = user?.role;
+      const role = JSON.parse(sessionStorage.getItem("user") || "null")?.role;
 
       if (
         role === "GENERAL_MANAGER" &&

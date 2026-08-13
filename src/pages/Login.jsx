@@ -94,6 +94,11 @@ export default function Login() {
             {loading ? "Signing in..." : "Sign In"}
           </button>
         </form>
+        <p className="text-center text-xs text-slate-400 mt-6">
+          By signing in you agree to our{" "}
+          <a href="/terms" target="_blank" className="underline">Terms</a> and{" "}
+          <a href="/privacy" target="_blank" className="underline">Privacy Policy</a>.
+        </p>
       </div>
     </div>
   );

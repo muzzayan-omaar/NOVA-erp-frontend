@@ -35,6 +35,7 @@ export default function PlatformOnboardingWizard() {
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [repConfirmedClientAgreed, setRepConfirmedClientAgreed] = useState(false);
 
   const [form, setForm] = useState({
     companyName: "",
@@ -127,7 +128,7 @@ export default function PlatformOnboardingWizard() {
   const handleCreate = async () => {
     try {
       setSubmitting(true);
-      const res = await platformApi.post("/platform/companies", form);
+      const res = await platformApi.post("/platform/companies", { ...form, repConfirmedClientAgreed });
       setResult(res.data);
       toast.success("Company created");
     } catch (err) {
@@ -392,14 +393,28 @@ export default function PlatformOnboardingWizard() {
                 <div className="flex justify-between border-b pb-2 text-base"><span className="font-semibold">Total Charge</span><span className="font-bold">UGX {chargeAmount.toLocaleString()}</span></div>
                 <div className="flex justify-between text-base"><span className="font-semibold">Covered Until</span><span className="font-bold">{previewEndDate.toLocaleDateString()}</span></div>
               </div>
+                <label className="flex items-start gap-3 text-sm text-slate-600 mt-4 pt-4 border-t">
+  <input
+    type="checkbox"
+    checked={repConfirmedClientAgreed}
+    onChange={(e) => setRepConfirmedClientAgreed(e.target.checked)}
+    className="mt-1"
+  />
+  <span>
+    I confirm this client has been informed of and agreed to Nova's{" "}
+    <a href="/terms" target="_blank" className="underline text-blue-600">Terms of Service</a>{" "}
+    and{" "}
+    <a href="/privacy" target="_blank" className="underline text-blue-600">Privacy Policy</a>.
+  </span>
+                </label>
 
-              <button
-                onClick={handleCreate}
-                disabled={submitting}
-                className="w-full mt-4 bg-green-600 text-white py-4 rounded-2xl font-semibold disabled:opacity-50"
-              >
-                {submitting ? "Creating..." : "Create Company"}
-              </button>
+                <button
+                  onClick={handleCreate}
+                  disabled={submitting || !repConfirmedClientAgreed}
+                  className="w-full mt-4 bg-green-600 text-white py-4 rounded-2xl font-semibold disabled:opacity-50"
+                >
+                  {submitting ? "Creating..." : "Create Company"}
+                </button>
             </div>
           )}
 

@@ -42,6 +42,8 @@ import PlatformOnboardingWizard from "./pages/platform/PlatformOnboardingWizard"
 import ChangePasswordScreen from "./pages/ChangePasswordScreen";
 import TermsPage from "./pages/TermsPage";
 import PrivacyPage from "./pages/PrivacyPage";
+import SupplierDetail from "./admin/modules/suppliers/SupplierDetail";
+import CustomerDetail from "./admin/modules/customers/CustomerDetail";
 
 
 import AuthGate from "./guards/AuthGate";
@@ -107,6 +109,14 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+  path="customers/:id"
+  element={
+    <ProtectedRoute permission="customers">
+      <CustomerDetail />
+    </ProtectedRoute>
+  }
+/>
         
   <Route
   path="support"
@@ -240,6 +250,14 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+  path="suppliers/:id"
+  element={
+    <ProtectedRoute permission="suppliers">
+      <SupplierDetail />
+    </ProtectedRoute>
+  }
+/>
 
         <Route
           path="payroll"

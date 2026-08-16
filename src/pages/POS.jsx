@@ -2,7 +2,18 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import useAuthStore from "../store/useAuthStore";
-import { ShoppingCart, LogOut, Search, X, Loader2, LayoutDashboard, WifiOff, CloudUpload, AlertCircle } from "lucide-react";
+import {
+  ShoppingCart,
+  LogOut,
+  Search,
+  X,
+  Loader2,
+  LayoutDashboard,
+  WifiOff,
+  CloudUpload,
+  AlertCircle,
+  UserCircle,
+} from "lucide-react";
 import toast from "react-hot-toast";
 import ReceiptModal from "../components/pos/ReceiptModal";
 import BarcodeScanner from "../components/pos/BarcodeScanner";
@@ -20,21 +31,29 @@ export default function POS() {
   const [paymentMethod, setPaymentMethod] = useState("CASH");
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+  const [customers, setCustomers] = useState([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const { isOnline, pendingCount, failedCount, syncNow } = useOfflineSalesSync();
 
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
 
-  // Fetch Products
+  // Fetch products + customers
   useEffect(() => {
     fetchProducts();
+    api
+      .get("/customers")
+      .then((res) => setCustomers(res.data))
+      .catch(() => {});
   }, []);
+
   const generateClientId = () => {
     if (typeof crypto !== "undefined" && crypto.randomUUID) {
       return crypto.randomUUID();
     }
     return `offline-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   };
+
   const fetchProducts = async () => {
     try {
       const res = await api.get("/products");
@@ -95,81 +114,85 @@ export default function POS() {
 
   // Checkout
   const handleCheckout = async () => {
-  if (cart.length === 0 || checkoutLoading) return;
+    if (cart.length === 0 || checkoutLoading) return;
 
-  setCheckoutLoading(true);
+    if (paymentMethod === "CREDIT" && !selectedCustomerId) {
+      toast.error("Select a customer for this credit sale");
+      return;
+    }
 
-  const clientReferenceId = generateClientId();
+    setCheckoutLoading(true);
 
-  const payload = {
-    items: cart.map(item => ({
-      productId: item.id,
-      quantity: item.qty
-    })),
-    paymentMethod,
-    discount: 0,
-    clientReferenceId,
-  };
+    const clientReferenceId = generateClientId();
 
-  try {
-    const res = await api.post("/sales", payload, { timeout: 8000 });
-
-    setLastSale({
-      ...res.data,
-      items: cart,
+    const payload = {
+      items: cart.map((item) => ({
+        productId: item.id,
+        quantity: item.qty,
+      })),
       paymentMethod,
-      pending: false,
-    });
+      discount: 0,
+      clientReferenceId,
+      customerId: paymentMethod === "CREDIT" ? selectedCustomerId : null,
+    };
 
-    setShowReceipt(true);
-    setCart([]);
-    toast.success(`Sale completed via ${paymentMethod}`);
-
-    await fetchProducts();
-  } catch (err) {
-    console.error(err);
-
-    if (!err.response) {
-      // No response reached us at all — genuine connectivity failure.
-      // Queue it locally and let the cashier keep working.
-      addToQueue({
-        clientReferenceId,
-        payload,
-      });
-
-      // Optimistically reflect the sale locally so this device doesn't
-      // oversell the same stock again before it can sync.
-      setProducts((prev) =>
-        prev.map((p) => {
-          const cartItem = cart.find((c) => c.id === p.id);
-          if (!cartItem) return p;
-          return { ...p, stockQuantity: p.stockQuantity - cartItem.qty };
-        })
-      );
+    try {
+      const res = await api.post("/sales", payload, { timeout: 8000 });
 
       setLastSale({
-        id: clientReferenceId,
-        totalAmount: total,
-        subtotal: total / 1.18,
-        vatAmount: total - total / 1.18,
+        ...res.data,
         items: cart,
         paymentMethod,
-        pending: true,
-        createdAt: new Date().toISOString(),
+        pending: false,
       });
 
       setShowReceipt(true);
       setCart([]);
-      toast.success("You're offline — sale saved and will sync automatically");
-    } else {
-      // A real response came back (insufficient stock, validation error, etc.)
-      // — this is not a connectivity issue, don't queue it.
-      toast.error(err.response?.data?.message || "Checkout failed");
+      setSelectedCustomerId("");
+      toast.success(`Sale completed via ${paymentMethod}`);
+
+      await fetchProducts();
+    } catch (err) {
+      console.error(err);
+
+      if (!err.response) {
+        // Offline — queue the sale (includes customerId for credit)
+        addToQueue({
+          clientReferenceId,
+          payload,
+        });
+
+        // Optimistically reduce stock locally
+        setProducts((prev) =>
+          prev.map((p) => {
+            const cartItem = cart.find((c) => c.id === p.id);
+            if (!cartItem) return p;
+            return { ...p, stockQuantity: p.stockQuantity - cartItem.qty };
+          })
+        );
+
+        setLastSale({
+          id: clientReferenceId,
+          totalAmount: total,
+          subtotal: total / 1.18,
+          vatAmount: total - total / 1.18,
+          items: cart,
+          paymentMethod,
+          pending: true,
+          createdAt: new Date().toISOString(),
+        });
+
+        setShowReceipt(true);
+        setCart([]);
+        setSelectedCustomerId("");
+        toast.success("You're offline — sale saved and will sync automatically");
+      } else {
+        toast.error(err.response?.data?.message || "Checkout failed");
+      }
+    } finally {
+      setCheckoutLoading(false);
     }
-  } finally {
-    setCheckoutLoading(false);
-  }
-};
+  };
 
   const filteredProducts = products.filter(
     (p) =>
@@ -180,47 +203,51 @@ export default function POS() {
   return (
     <div className="h-screen bg-slate-100 flex flex-col overflow-hidden">
       {/* Top Bar */}
-      <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="bg-blue-600 p-3 rounded-xl">
-            <ShoppingCart size={28} />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold">Nova POS</h1>
-            <p className="text-slate-400 text-sm">
-              {user?.store?.name || "Demo Store"}
-            </p>
-          </div>
-        </div>
+<div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between shrink-0">
+  <div className="flex items-center gap-4">
+    <div className="bg-blue-600 p-3 rounded-xl">
+      <ShoppingCart size={28} />
+    </div>
+    <div>
+      <h1 className="text-2xl font-bold">Nova POS</h1>
+      <p className="text-slate-400 text-sm">
+        {user?.store?.name || "Demo Store"}
+      </p>
+    </div>
+  </div>
 
-        <div className="flex items-center gap-6">
-          <div className="text-right">
-            <p className="font-semibold">{user?.name}</p>
-            <p className="text-xs text-slate-400">{user?.role}</p>
-          </div>
+  <div className="flex items-center gap-6">
+    <div className="text-right">
+      <p className="font-semibold">{user?.name}</p>
+      <p className="text-xs text-slate-400">{user?.role}</p>
+    </div>
 
-          {hasPermission(user?.role, "dashboard") && (
-            <button
-              onClick={() => navigate("/admin")}
-              className="bg-slate-700 hover:bg-slate-600 px-5 py-2 rounded-lg text-sm flex items-center gap-2"
-            >
-              <LayoutDashboard size={18} />
-              Admin
-            </button>
-          )}
+    {hasPermission(user?.role, "dashboard") && (
+      <button
+        onClick={() => navigate("/admin")}
+        className="bg-slate-700 hover:bg-slate-600 px-5 py-2 rounded-lg text-sm flex items-center gap-2"
+      >
+        <LayoutDashboard size={18} />
+        Admin
+      </button>
+    )}
 
-          <button
-            onClick={() => {
-              logout();
-              navigate("/login");
-            }}
-            className="bg-red-600 hover:bg-red-700 px-5 py-2 rounded-lg text-sm flex items-center gap-2"
-          >
-            <LogOut size={18} />
-            Logout
-          </button>
-          {(!isOnline || pendingCount > 0 || failedCount > 0) && (
-  <div className="bg-amber-50 border-b border-amber-200 px-6 py-2 flex items-center justify-between text-sm">
+    <button
+      onClick={() => {
+        logout();
+        navigate("/login");
+      }}
+      className="bg-red-600 hover:bg-red-700 px-5 py-2 rounded-lg text-sm flex items-center gap-2"
+    >
+      <LogOut size={18} />
+      Logout
+    </button>
+  </div>
+</div>
+
+{/* Offline / Sync Banner — now outside the top bar */}
+{(!isOnline || pendingCount > 0 || failedCount > 0) && (
+  <div className="bg-amber-50 border-b border-amber-200 px-6 py-2 flex items-center justify-between text-sm shrink-0">
     <div className="flex items-center gap-4">
       {!isOnline && (
         <span className="flex items-center gap-2 text-amber-700 font-medium">
@@ -249,8 +276,6 @@ export default function POS() {
     )}
   </div>
 )}
-        </div>
-      </div>
 
       {/* Daily Summary Bar */}
       <div className="bg-white border-b px-6 py-3 flex items-center justify-between text-sm">
@@ -398,8 +423,8 @@ export default function POS() {
             {/* Payment Methods */}
             <div className="mb-6">
               <p className="text-sm text-slate-500 mb-3">Payment Method</p>
-              <div className="grid grid-cols-3 gap-3">
-                {["CASH", "MOBILE_MONEY", "CARD"].map((method) => (
+              <div className="grid grid-cols-2 gap-3">
+                {["CASH", "MOBILE_MONEY", "CARD", "CREDIT"].map((method) => (
                   <button
                     key={method}
                     onClick={() => setPaymentMethod(method)}
@@ -413,6 +438,30 @@ export default function POS() {
                   </button>
                 ))}
               </div>
+
+              {/* Customer picker — only when CREDIT is selected */}
+              {paymentMethod === "CREDIT" && (
+                <div className="mt-4">
+                  <label className="text-sm text-slate-500 mb-2 flex items-center gap-2">
+                    <UserCircle size={16} /> Customer (required for credit)
+                  </label>
+                  <select
+                    className="w-full p-4 border rounded-2xl bg-white"
+                    value={selectedCustomerId}
+                    onChange={(e) => setSelectedCustomerId(e.target.value)}
+                  >
+                    <option value="">Select customer</option>
+                    {customers.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                        {c.totalCredit > 0
+                          ? ` (owes UGX ${Number(c.totalCredit).toLocaleString()})`
+                          : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
             <button

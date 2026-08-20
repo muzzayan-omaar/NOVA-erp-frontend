@@ -93,7 +93,7 @@ export default function ReceiptModal({ open, onClose, sale, onVoided }) {
           </div>
 
           <div className="text-center text-xs text-slate-500 mt-6">
-            Payment: <span className="capitalize font-medium">{paymentMethod.replace('_', ' ')}</span>
+            Payment: <span className="capitalize font-medium">{paymentMethod?.replace('_', ' ')}</span>
           </div>
 
           {/* EFRIS QR */}

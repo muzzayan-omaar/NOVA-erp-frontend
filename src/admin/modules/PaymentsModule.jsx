@@ -19,14 +19,18 @@ const METHOD_STYLES = {
   MOBILE_MONEY: "bg-blue-100 text-blue-600",
   CARD: "bg-purple-100 text-purple-600",
   CREDIT: "bg-amber-100 text-amber-600",
-  MIXED: "bg-slate-200 text-slate-600",
 };
 
 export default function PaymentsModule() {
   const { user } = useAuthStore();
 
   const [paymentData, setPaymentData] = useState({
-    cash: 0, mobile: 0, card: 0, credit: 0, mixed: 0, total: 0, transactionCount: 0,
+    cash: 0,
+    mobile: 0,
+    card: 0,
+    credit: 0,
+    total: 0,
+    transactionCount: 0,
   });
   const [transactions, setTransactions] = useState([]);
 
@@ -89,7 +93,7 @@ export default function PaymentsModule() {
 
       setReceiptSale({
         ...sale,
-        items: sale.saleItems.map((i) => ({
+        items: (sale.saleItems || []).map((i) => ({
           name: i.product?.name || "Unknown item",
           qty: i.quantity,
           sellingPrice: i.unitPrice,
@@ -140,15 +144,16 @@ export default function PaymentsModule() {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      {/* Summary cards — real method totals (split payments already broken down by backend) */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <Card title="Cash" amount={paymentData.cash || 0} icon={Banknote} color="bg-green-600" />
         <Card title="Mobile Money" amount={paymentData.mobile || 0} icon={Wallet} color="bg-blue-600" />
         <Card title="Card" amount={paymentData.card || 0} icon={CreditCard} color="bg-purple-600" />
         <Card title="Credit" amount={paymentData.credit || 0} icon={Receipt} color="bg-amber-600" />
         <Card title="Total Today" amount={paymentData.total || 0} icon={TrendingUp} color="bg-slate-900" />
-        <Card title="Transactions" amount={paymentData.transactionCount || 0} icon={Receipt} color="bg-orange-600" />
       </div>
 
+      {/* Filters */}
       <div className="bg-white rounded-3xl shadow p-5 space-y-4">
         <form onSubmit={handleSearch} className="flex gap-4 flex-wrap">
           <div className="relative flex-1 min-w-[220px]">
@@ -171,7 +176,6 @@ export default function PaymentsModule() {
             <option value="MOBILE_MONEY">Mobile Money</option>
             <option value="CARD">Card</option>
             <option value="CREDIT">Credit</option>
-            <option value="MIXED">Mixed</option>
           </select>
 
           <input
@@ -193,6 +197,7 @@ export default function PaymentsModule() {
         </form>
       </div>
 
+      {/* Transaction list */}
       <div className="bg-white rounded-3xl shadow p-8">
         <h2 className="text-xl font-bold mb-6">Transaction History</h2>
 
@@ -200,34 +205,69 @@ export default function PaymentsModule() {
           <p className="text-center text-slate-500 py-10">No transactions found</p>
         ) : (
           <div className="space-y-3">
-            {transactions.map((t) => (
-              <div key={t.id} className="flex justify-between items-center border rounded-2xl p-5">
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${METHOD_STYLES[t.paymentMethod] || "bg-slate-100 text-slate-600"}`}>
-                      {t.paymentMethod.replace("_", " ")}
-                    </span>
-                    <p className="text-sm text-slate-500">
-                      {t.user?.name || "Unknown cashier"}
-                      {t.customer ? ` · ${t.customer.name}` : ""}
+            {transactions.map((t) => {
+              const methods =
+                t.payments && t.payments.length > 0
+                  ? [...new Set(t.payments.map((p) => p.method))]
+                  : [t.paymentMethod];
+
+              return (
+                <div
+                  key={t.id}
+                  className="flex justify-between items-center border rounded-2xl p-5"
+                >
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {methods.map((m) => (
+                        <span
+                          key={m}
+                          className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                            METHOD_STYLES[m] || "bg-slate-100 text-slate-600"
+                          }`}
+                        >
+                          {m.replace("_", " ")}
+                        </span>
+                      ))}
+                      <p className="text-sm text-slate-500">
+                        {t.user?.name || "Unknown cashier"}
+                        {t.customer ? ` · ${t.customer.name}` : ""}
+                      </p>
+                    </div>
+
+                    <p className="text-xs text-slate-400 mt-1">
+                      {new Date(t.createdAt).toLocaleString()} ·{" "}
+                      {t.saleItems?.length || 0} item(s)
+                      {t.payments?.length > 1 && (
+                        <span className="ml-2 text-slate-500">
+                          (
+                          {t.payments
+                            .map(
+                              (p) =>
+                                `${p.method.replace("_", " ")} ${Number(
+                                  p.amount
+                                ).toLocaleString()}`
+                            )
+                            .join(" + ")}
+                          )
+                        </span>
+                      )}
                     </p>
                   </div>
-                  <p className="text-xs text-slate-400 mt-1">
-                    {new Date(t.createdAt).toLocaleString()} · {t.saleItems.length} item(s)
-                  </p>
-                </div>
 
-                <div className="flex items-center gap-4">
-                  <p className="font-bold text-lg">UGX {Number(t.totalAmount).toLocaleString()}</p>
-                  <button
-                    onClick={() => viewReceipt(t.id)}
-                    className="flex items-center gap-2 text-sm font-medium text-blue-600 px-4 py-2 rounded-xl border border-blue-200 hover:bg-blue-50"
-                  >
-                    <Eye size={16} /> Receipt
-                  </button>
+                  <div className="flex items-center gap-4">
+                    <p className="font-bold text-lg">
+                      UGX {Number(t.totalAmount).toLocaleString()}
+                    </p>
+                    <button
+                      onClick={() => viewReceipt(t.id)}
+                      className="flex items-center gap-2 text-sm font-medium text-blue-600 px-4 py-2 rounded-xl border border-blue-200 hover:bg-blue-50"
+                    >
+                      <Eye size={16} /> Receipt
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

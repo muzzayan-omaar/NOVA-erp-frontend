@@ -538,10 +538,13 @@ export default function POS() {
                       <option value="">Select customer</option>
                       {customers.map((c) => (
                         <option key={c.id} value={c.id}>
-                          {c.name}{" "}
-                          {c.totalCredit > 0
-                            ? `(owes UGX ${Number(c.totalCredit).toLocaleString()})`
-                            : ""}
+                          {c.name}
+                          {c.totalCredit > 0 ? ` (owes UGX ${Number(c.totalCredit).toLocaleString()}` : ""}
+                          {c.creditLimit > 0
+                            ? ` / limit UGX ${Number(c.creditLimit).toLocaleString()})`
+                            : c.totalCredit > 0
+                              ? ")"
+                              : ""}
                         </option>
                       ))}
                     </select>
@@ -618,6 +621,12 @@ export default function POS() {
                       {customers.map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.name}
+                          {c.totalCredit > 0 ? ` (owes UGX ${Number(c.totalCredit).toLocaleString()}` : ""}
+                          {c.creditLimit > 0
+                            ? ` / limit UGX ${Number(c.creditLimit).toLocaleString()})`
+                            : c.totalCredit > 0
+                              ? ")"
+                              : ""}
                         </option>
                       ))}
                     </select>

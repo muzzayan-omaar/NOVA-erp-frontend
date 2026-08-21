@@ -17,6 +17,8 @@ export default function CustomerDetail() {
   const [paymentNotes, setPaymentNotes] = useState("");
   const [submittingPayment, setSubmittingPayment] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [editingLimit, setEditingLimit] = useState(false);
+  const [limitInput, setLimitInput] = useState("");
 
   const fetchAll = async () => {
     try {
@@ -74,6 +76,17 @@ export default function CustomerDetail() {
     }
   };
 
+  const saveLimit = async () => {
+    try {
+      await api.put(`/customers/${id}`, { creditLimit: Number(limitInput) });
+      toast.success("Credit limit updated");
+      setEditingLimit(false);
+      fetchAll();
+    } catch (err) {
+      toast.error("Failed to update credit limit");
+    }
+  };
+
   if (loading) return <p className="text-center py-20">Loading...</p>;
   if (!data) return <p className="text-center py-20">Customer not found</p>;
 
@@ -97,6 +110,49 @@ export default function CustomerDetail() {
             <p className="text-slate-500 text-sm mt-1">
               {customer.phone || "—"} · {customer.email || "No email"}
             </p>
+
+            <div className="mt-3 flex items-center gap-2">
+  <span className="text-sm text-slate-500">Credit Limit:</span>
+  {editingLimit ? (
+    <>
+      <input
+        type="number"
+        className="p-2 border rounded-xl text-sm w-32"
+        value={limitInput}
+        onChange={(e) => setLimitInput(e.target.value)}
+      />
+      <button
+        onClick={saveLimit}
+        className="text-sm bg-blue-600 text-white px-3 py-2 rounded-xl"
+      >
+        Save
+      </button>
+      <button
+        onClick={() => setEditingLimit(false)}
+        className="text-sm px-3 py-2"
+      >
+        Cancel
+      </button>
+    </>
+  ) : (
+    <>
+      <span className="font-semibold">
+        {customer.creditLimit > 0
+          ? `UGX ${Number(customer.creditLimit).toLocaleString()}`
+          : "No limit set"}
+      </span>
+      <button
+        onClick={() => {
+          setLimitInput(customer.creditLimit || "");
+          setEditingLimit(true);
+        }}
+        className="text-xs text-blue-600 underline"
+      >
+        Edit
+      </button>
+    </>
+  )}
+</div>
           </div>
 
           <div className="flex gap-3">

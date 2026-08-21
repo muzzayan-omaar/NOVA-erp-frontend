@@ -19,6 +19,7 @@ export default function ExpensesModule() {
     description: "",
     amount: "",
     category: "General",
+    expenseType: "OPERATING",
   });
 
   const isGM = user?.role === "GENERAL_MANAGER";
@@ -54,10 +55,11 @@ export default function ExpensesModule() {
         category: form.category,
         description: form.description,
         amount: parseFloat(form.amount),
+        expenseType: form.expenseType,
       });
 
       toast.success("Expense recorded");
-      setForm({ description: "", amount: "", category: "General" });
+      setForm({ description: "", amount: "", category: "General", expenseType: "OPERATING" });
       setShowForm(false);
       fetchExpenses();
     } catch (err) {
@@ -127,6 +129,8 @@ export default function ExpensesModule() {
           </select>
         </div>
 
+        
+
         {showForm && (
           <div className="bg-slate-50 p-6 rounded-2xl mb-6 relative">
             <button
@@ -160,6 +164,28 @@ export default function ExpensesModule() {
                 ))}
               </select>
             </div>
+            <div className="grid grid-cols-2 gap-3">
+  <button
+    type="button"
+    onClick={() => setForm({ ...form, expenseType: "OPERATING" })}
+    className={`p-3 rounded-2xl border text-sm font-medium ${
+      form.expenseType === "OPERATING" ? "border-blue-600 bg-blue-50" : "border-slate-200"
+    }`}
+  >
+    Operating Expense
+    <p className="text-xs text-slate-500 font-normal mt-1">Rent, fuel, utilities — day-to-day costs</p>
+  </button>
+  <button
+    type="button"
+    onClick={() => setForm({ ...form, expenseType: "CAPITAL" })}
+    className={`p-3 rounded-2xl border text-sm font-medium ${
+      form.expenseType === "CAPITAL" ? "border-amber-600 bg-amber-50" : "border-slate-200"
+    }`}
+  >
+    Capital Expense
+    <p className="text-xs text-slate-500 font-normal mt-1">Vehicles, equipment — long-term assets</p>
+  </button>
+</div>
             <button
               onClick={addExpense}
               disabled={submitting}
@@ -181,10 +207,15 @@ export default function ExpensesModule() {
                 <div>
                   <p className="font-medium">{exp.description || exp.category}</p>
                   <p className="text-xs text-slate-500">
-                    {exp.category} • {new Date(exp.createdAt).toLocaleDateString()} •{" "}
-                    {exp.createdBy?.name || "Unknown"}
-                    {exp.store?.name ? ` • ${exp.store.name}` : ""}
-                  </p>
+  {exp.category}
+  {exp.expenseType === "CAPITAL" && (
+    <span className="ml-2 bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold">
+      CAPITAL
+    </span>
+  )}
+  {" "}• {new Date(exp.createdAt).toLocaleDateString()} • {exp.createdBy?.name || "Unknown"}
+  {exp.store?.name ? ` • ${exp.store.name}` : ""}
+</p>
                 </div>
                 <div className="flex items-center gap-4">
                   <p className="font-bold text-red-600">

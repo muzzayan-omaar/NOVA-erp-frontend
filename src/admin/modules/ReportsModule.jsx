@@ -12,6 +12,7 @@ import {
   Percent,
   Download,
   FileSpreadsheet,
+  Clock,
 } from "lucide-react";
 import { exportReportPdf, exportReportCsv } from "../../utils/reportExport";
 
@@ -24,6 +25,7 @@ const TABS = [
   { key: "receivables-payables", label: "Receivables & Payables", icon: Users },
   { key: "vat-summary", label: "VAT Summary", icon: Percent },
   { key: "nssf-return", label: "NSSF Return", icon: Percent },
+  { key: "supplier-aging", label: "Supplier Aging", icon: Clock },
 ];
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
@@ -49,7 +51,7 @@ export default function ReportsModule() {
       // Call the existing payroll endpoint
       url = `/payroll/nssf-return`;
       params = { month: from.slice(0, 7) }; // e.g. "2026-08"
-    } else if (tab !== "stock-summary" && tab !== "receivables-payables") {
+    } else if (tab !== "stock-summary" && tab !== "receivables-payables" && tab !== "supplier-aging") {
       params = { from, to };
     }
 
@@ -138,7 +140,7 @@ export default function ReportsModule() {
               }}
             />
           </div>
-        ) : tab !== "stock-summary" && tab !== "receivables-payables" ? (
+        ) : tab !== "stock-summary" && tab !== "receivables-payables" && tab !== "supplier-aging" ? (
           <>
             <div>
               <label className="text-xs text-slate-500">From</label>
@@ -188,6 +190,7 @@ function ReportBody({ tab, data }) {
   if (tab === "receivables-payables") return <ReceivablesPayablesBody data={data} />;
   if (tab === "vat-summary") return <VatSummaryBody data={data} />;
   if (tab === "nssf-return") return <NssfReturnBody data={data} />;
+  if (tab === "supplier-aging") return <SupplierAgingBody data={data} />;
   return null;
 }
 
@@ -323,6 +326,17 @@ function ProfitLossBody({ data }) {
       <Row label="Payroll" value={-(data.payrollCost ?? 0)} indent />
       <Row label="Net Profit" value={data.netProfit} bold />
 
+      {data.capitalSpend > 0 && (
+  <div className="mt-4 bg-amber-50 rounded-2xl p-4 text-sm">
+    <p className="font-semibold text-amber-700">
+      Capital Spend This Period: UGX {Number(data.capitalSpend).toLocaleString()}
+    </p>
+    <p className="text-amber-600 text-xs mt-1">
+      Shown separately — long-term asset purchases aren't counted against operating profit.
+    </p>
+  </div>
+)}
+
       {Object.keys(expenseBreakdown).length > 0 && (
         <div className="mt-8">
           <h3 className="font-bold mb-3">Expense Breakdown</h3>
@@ -451,6 +465,87 @@ function Stat({ label, value, highlight, isCount }) {
   );
 }
 
+function SupplierAgingBody({ data }) {
+  const rows = data?.rows || [];
+  const totals = data?.totals || {
+    current: 0,
+    days31to60: 0,
+    days61to90: 0,
+    days90plus: 0,
+    totalOwed: 0,
+  };
+
+  if (rows.length === 0) {
+    return (
+      <p className="text-center text-slate-500 py-10">
+        Nothing currently owed to suppliers
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-4 gap-4">
+        <Stat label="Current (0-30d)" value={totals.current} />
+        <Stat label="31-60 days" value={totals.days31to60} />
+        <Stat label="61-90 days" value={totals.days61to90} />
+        <Stat label="90+ days" value={totals.days90plus} highlight />
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-slate-500 border-b">
+              <th className="py-2">Supplier</th>
+              <th className="py-2 text-right">Current</th>
+              <th className="py-2 text-right">31-60</th>
+              <th className="py-2 text-right">61-90</th>
+              <th className="py-2 text-right">90+</th>
+              <th className="py-2 text-right">Total</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.supplierId} className="border-b">
+                <td className="py-3 font-medium">
+                  {r.supplierName}
+                </td>
+
+                <td className="py-3 text-right">
+                  {Number(r.current ?? 0).toLocaleString()}
+                </td>
+
+                <td className="py-3 text-right">
+                  {Number(r.days31to60 ?? 0).toLocaleString()}
+                </td>
+
+                <td className="py-3 text-right">
+                  {Number(r.days61to90 ?? 0).toLocaleString()}
+                </td>
+
+                <td
+                  className={`py-3 text-right ${
+                    Number(r.days90plus ?? 0) > 0
+                      ? "text-red-600 font-semibold"
+                      : ""
+                  }`}
+                >
+                  {Number(r.days90plus ?? 0).toLocaleString()}
+                </td>
+
+                <td className="py-3 text-right font-bold">
+                  {Number(r.totalOwed ?? 0).toLocaleString()}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 /* ---------- Export shaping ---------- */
 
 function dateSubtitle(tab, date, from, to) {
@@ -470,6 +565,8 @@ function buildExportShape(tab, data) {
     "cash-flow": "Cash Flow Summary",
     "receivables-payables": "Receivables and Payables",
     "vat-summary": "VAT Summary",
+    "nssf-return": "NSSF Return",
+    "supplier-aging": "Supplier Aging",
   };
 
   const money = (v) => `UGX ${Number(v ?? 0).toLocaleString()}`;
@@ -590,21 +687,49 @@ function buildExportShape(tab, data) {
   }
 
   if (tab === "nssf-return") {
+    return {
+      reportTitle: "NSSF Return",
+      columns: ["Employee", "Gross Salary", "Employee NSSF", "Employer NSSF", "Total NSSF"],
+      rows: (data.rows || []).map((r) => [
+        r.employee,
+        `UGX ${Number(r.grossSalary ?? 0).toLocaleString()}`,
+        `UGX ${Number(r.nssfEmployee ?? 0).toLocaleString()}`,
+        `UGX ${Number(r.nssfEmployer ?? 0).toLocaleString()}`,
+        `UGX ${Number(r.nssfTotal ?? 0).toLocaleString()}`,
+      ]),
+      summaryLines: [
+        `Total Gross: UGX ${Number(data.totals?.grossSalary ?? 0).toLocaleString()}`,
+        `Total Employee NSSF: UGX ${Number(data.totals?.nssfEmployee ?? 0).toLocaleString()}`,
+        `Total Employer NSSF: UGX ${Number(data.totals?.nssfEmployer ?? 0).toLocaleString()}`,
+        `Grand Total NSSF: UGX ${Number(data.totals?.nssfTotal ?? 0).toLocaleString()}`,
+      ],
+    };
+  }
+
+  if (tab === "supplier-aging") {
+  const rows = data?.rows || [];
+  const totals = data?.totals || {};
+
   return {
-    reportTitle: "NSSF Return",
-    columns: ["Employee", "Gross Salary", "Employee NSSF", "Employer NSSF", "Total NSSF"],
-    rows: (data.rows || []).map((r) => [
-      r.employee,
-      `UGX ${Number(r.grossSalary ?? 0).toLocaleString()}`,
-      `UGX ${Number(r.nssfEmployee ?? 0).toLocaleString()}`,
-      `UGX ${Number(r.nssfEmployer ?? 0).toLocaleString()}`,
-      `UGX ${Number(r.nssfTotal ?? 0).toLocaleString()}`,
+    reportTitle: "Supplier Aging",
+    columns: [
+      "Supplier",
+      "Current",
+      "31-60 Days",
+      "61-90 Days",
+      "90+ Days",
+      "Total",
+    ],
+    rows: rows.map((r) => [
+      r.supplierName,
+      money(r.current),
+      money(r.days31to60),
+      money(r.days61to90),
+      money(r.days90plus),
+      money(r.totalOwed),
     ]),
     summaryLines: [
-      `Total Gross: UGX ${Number(data.totals?.grossSalary ?? 0).toLocaleString()}`,
-      `Total Employee NSSF: UGX ${Number(data.totals?.nssfEmployee ?? 0).toLocaleString()}`,
-      `Total Employer NSSF: UGX ${Number(data.totals?.nssfEmployer ?? 0).toLocaleString()}`,
-      `Grand Total NSSF: UGX ${Number(data.totals?.nssfTotal ?? 0).toLocaleString()}`,
+      `Total Payable: ${money(totals.totalOwed)}`,
     ],
   };
 }

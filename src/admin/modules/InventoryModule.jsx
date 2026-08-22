@@ -10,6 +10,8 @@ import {
   ArrowDown,
   ArrowUp,
   RefreshCw,
+  PackageCheck,
+  Send,
 } from "lucide-react";
 
 import toast from "react-hot-toast";
@@ -40,6 +42,9 @@ export default function InventoryModule() {
   const [filterType, setFilterType] = useState("All");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [transits, setTransits] = useState([]);
+  const [receivingTransitId, setReceivingTransitId] = useState(null);
+  const [receiveQty, setReceiveQty] = useState("");
 
   const [adjustment, setAdjustment] = useState({
     productId: "",
@@ -65,13 +70,16 @@ export default function InventoryModule() {
       if (dateFrom) params.from = dateFrom;
       if (dateTo) params.to = dateTo;
 
-      const [movementRes, productRes] = await Promise.all([
+      const [movementRes, productRes, transitRes] = await Promise.all([
         api.get("/inventory/movements", { params }),
         api.get("/products"),
+        api.get("/inventory/transits"),
+
       ]);
 
       setMovements(movementRes.data);
       setProducts(productRes.data);
+      setTransits(transitRes.data);
 
       const totalStock = productRes.data.reduce(
         (sum, p) => sum + (p.stockQuantity || 0),
@@ -150,6 +158,28 @@ export default function InventoryModule() {
     setDateTo("");
   };
 
+  const startReceiving = (transit) => {
+  setReceivingTransitId(transit.id);
+  setReceiveQty(String(transit.quantitySent));
+};
+
+const confirmReceiveTransit = async (transitId) => {
+  try {
+    const res = await api.post(`/inventory/transits/${transitId}/receive`, {
+      quantityReceived: Number(receiveQty),
+    });
+    if (res.data.varianceValue > 0) {
+      toast.error(`Received with a shortfall worth UGX ${res.data.varianceValue.toLocaleString()} — flagged for review`);
+    } else {
+      toast.success("Received in full");
+    }
+    setReceivingTransitId(null);
+    fetchInventory();
+  } catch (err) {
+    toast.error(err?.response?.data?.message || "Failed to confirm receipt");
+  }
+};
+
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-center flex-wrap gap-3">
@@ -185,6 +215,91 @@ export default function InventoryModule() {
         <Stat title="Out Stock" value={stats.outOfStockCount} />
         <Stat title="Value" value={`UGX ${stats.inventoryValue.toLocaleString()}`} />
       </div>
+
+      {transits.some((t) => t.status === "IN_TRANSIT") && (
+  <div className="bg-white rounded-3xl shadow p-8">
+    <h2 className="text-xl font-bold flex gap-3 mb-6">
+      <PackageCheck /> Stock Transfers In Transit
+    </h2>
+
+    <div className="space-y-3">
+      {transits
+        .filter((t) => t.status === "IN_TRANSIT")
+        .map((t) => {
+          const isIncoming = t.targetStore && t.sourceStore; // both present regardless; distinguish by comparing to current context isn't available client-side directly, so rely on which side has a receive action available (backend already scopes /receive to target store only)
+          return (
+            <div key={t.id} className="border rounded-2xl p-5">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="font-semibold">{t.product?.name}</p>
+                  <p className="text-sm text-slate-500 flex items-center gap-2 mt-1">
+                    <Send size={14} /> {t.sourceStore?.name} → {t.targetStore?.name}
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Dispatched by {t.dispatchedBy?.name} · {new Date(t.dispatchedAt).toLocaleString()}
+                  </p>
+                </div>
+                <p className="font-bold text-lg">{t.quantitySent} units</p>
+              </div>
+
+              {receivingTransitId === t.id ? (
+                <div className="mt-4 border-t pt-4 flex items-center gap-3">
+                  <input
+                    type="number"
+                    className="p-3 border rounded-xl flex-1"
+                    value={receiveQty}
+                    onChange={(e) => setReceiveQty(e.target.value)}
+                    placeholder="Quantity actually received"
+                  />
+                  <button
+                    onClick={() => confirmReceiveTransit(t.id)}
+                    className="bg-green-600 text-white px-5 py-3 rounded-xl font-semibold"
+                  >
+                    Confirm Receipt
+                  </button>
+                  <button
+                    onClick={() => setReceivingTransitId(null)}
+                    className="bg-slate-200 px-5 py-3 rounded-xl font-semibold"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <div className="mt-4 border-t pt-4 flex justify-end">
+                  <button
+                    onClick={() => startReceiving(t)}
+                    className="flex items-center gap-2 text-sm font-medium text-green-600 px-4 py-2 rounded-xl border border-green-200 hover:bg-green-50"
+                  >
+                    <PackageCheck size={16} /> Receive This Transfer
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+    </div>
+  </div>
+)}
+
+{transits.some((t) => t.status === "VARIANCE") && (
+  <div className="bg-red-50 rounded-3xl p-6">
+    <h3 className="font-bold text-red-700 mb-3">Transfers With Missing Stock</h3>
+    <div className="space-y-2">
+      {transits
+        .filter((t) => t.status === "VARIANCE")
+        .map((t) => (
+          <div key={t.id} className="flex justify-between text-sm border-b border-red-200 py-2">
+            <span>
+              {t.product?.name}: {t.sourceStore?.name} → {t.targetStore?.name}
+            </span>
+            <span className="font-semibold text-red-700">
+              Sent {t.quantitySent}, received {t.quantityReceived}
+            </span>
+          </div>
+        ))}
+    </div>
+  </div>
+)}
 
       {/* FILTERS */}
       <div className="bg-white rounded-3xl shadow p-5 space-y-4">

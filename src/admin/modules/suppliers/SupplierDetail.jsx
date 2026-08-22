@@ -35,6 +35,8 @@ export default function SupplierDetail() {
   const [submittingPayment, setSubmittingPayment] = useState(false);
   const [receivingOrderId, setReceivingOrderId] = useState(null);
   const [receiveQuantities, setReceiveQuantities] = useState({});
+  const [receivingExtraCost, setReceivingExtraCost] = useState("");
+  const [receivingExtraCostNotes, setReceivingExtraCostNotes] = useState("");
 
   const fetchAll = async () => {
     try {
@@ -83,28 +85,34 @@ export default function SupplierDetail() {
   };
 
   const startReceiving = (order) => {
-    setReceivingOrderId(order.id);
-    const defaults = {};
-    order.items.forEach((i) => {
-      defaults[i.id] = i.quantityOrdered;
-    });
-    setReceiveQuantities(defaults);
-  };
+  setReceivingOrderId(order.id);
+  setReceivingExtraCost("");
+  setReceivingExtraCostNotes("");
+  const defaults = {};
+  order.items.forEach((i) => {
+    defaults[i.id] = i.quantityOrdered;
+  });
+  setReceiveQuantities(defaults);
+};
 
   const confirmReceive = async (orderId) => {
-    try {
-      const items = Object.entries(receiveQuantities).map(([itemId, quantityReceived]) => ({
-        itemId,
-        quantityReceived: Number(quantityReceived),
-      }));
-      await api.post(`/purchase-orders/${orderId}/receive`, { items });
-      toast.success("Stock received and updated");
-      setReceivingOrderId(null);
-      fetchAll();
-    } catch (err) {
-      toast.error(err?.response?.data?.message || "Failed to receive order");
-    }
-  };
+  try {
+    const items = Object.entries(receiveQuantities).map(([itemId, quantityReceived]) => ({
+      itemId,
+      quantityReceived: Number(quantityReceived),
+    }));
+    await api.post(`/purchase-orders/${orderId}/receive`, {
+      items,
+      additionalCosts: Number(receivingExtraCost) || 0,
+      additionalCostsNotes: receivingExtraCostNotes,
+    });
+    toast.success("Stock received, cost updated");
+    setReceivingOrderId(null);
+    fetchAll();
+  } catch (err) {
+    toast.error(err?.response?.data?.message || "Failed to receive order");
+  }
+};
 
   const handlePayment = async (e) => {
     e.preventDefault();
@@ -245,6 +253,27 @@ export default function SupplierDetail() {
                         />
                       </div>
                     ))}
+                    <div className="grid grid-cols-2 gap-3">
+  <div>
+    <label className="text-xs text-slate-500">Freight / Transport Cost (optional)</label>
+    <input
+      type="number"
+      className="w-full p-2 border rounded-lg text-sm mt-1"
+      placeholder="e.g. transport fee"
+      value={receivingExtraCost}
+      onChange={(e) => setReceivingExtraCost(e.target.value)}
+    />
+  </div>
+  <div>
+    <label className="text-xs text-slate-500">Note</label>
+    <input
+      className="w-full p-2 border rounded-lg text-sm mt-1"
+      placeholder="e.g. truck hire to Mukono branch"
+      value={receivingExtraCostNotes}
+      onChange={(e) => setReceivingExtraCostNotes(e.target.value)}
+    />
+  </div>
+</div>
                     <div className="flex gap-3">
                       <button
                         onClick={() => confirmReceive(o.id)}

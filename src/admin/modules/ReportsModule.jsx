@@ -13,6 +13,7 @@ import {
   Download,
   FileSpreadsheet,
   Clock,
+  TrendingDown,
 } from "lucide-react";
 import { exportReportPdf, exportReportCsv } from "../../utils/reportExport";
 
@@ -26,6 +27,7 @@ const TABS = [
   { key: "vat-summary", label: "VAT Summary", icon: Percent },
   { key: "nssf-return", label: "NSSF Return", icon: Percent },
   { key: "supplier-aging", label: "Supplier Aging", icon: Clock },
+  { key: "reorder-alerts", label: "Reorder Alerts", icon: TrendingDown },
 ];
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
@@ -51,7 +53,7 @@ export default function ReportsModule() {
       // Call the existing payroll endpoint
       url = `/payroll/nssf-return`;
       params = { month: from.slice(0, 7) }; // e.g. "2026-08"
-    } else if (tab !== "stock-summary" && tab !== "receivables-payables" && tab !== "supplier-aging") {
+    } else if (tab !== "stock-summary" && tab !== "receivables-payables" && tab !== "supplier-aging" && tab !== "reorder-alerts" && tab !== "trending-down"  ) {
       params = { from, to };
     }
 
@@ -140,7 +142,7 @@ export default function ReportsModule() {
               }}
             />
           </div>
-        ) : tab !== "stock-summary" && tab !== "receivables-payables" && tab !== "supplier-aging" ? (
+        ) : tab !== "stock-summary" && tab !== "receivables-payables" && tab !== "supplier-aging" && tab !== "reorder-alerts" ? (
           <>
             <div>
               <label className="text-xs text-slate-500">From</label>
@@ -191,6 +193,7 @@ function ReportBody({ tab, data }) {
   if (tab === "vat-summary") return <VatSummaryBody data={data} />;
   if (tab === "nssf-return") return <NssfReturnBody data={data} />;
   if (tab === "supplier-aging") return <SupplierAgingBody data={data} />;
+  if (tab === "reorder-alerts") return <ReorderAlertsBody data={data} />;
   return null;
 }
 
@@ -546,6 +549,66 @@ function SupplierAgingBody({ data }) {
   );
 }
 
+function ReorderAlertsBody({ data }) {
+  const rows = data?.rows || [];
+  const urgent = rows.filter((r) => r.needsReorder);
+
+  return (
+    <div className="space-y-6">
+      {urgent.length > 0 && (
+        <div className="bg-red-50 rounded-2xl p-4 text-sm text-red-700 font-medium">
+          {urgent.length} product(s) will run out before a new order could arrive — reorder these now.
+        </div>
+      )}
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-slate-500 border-b">
+              <th className="py-2">Product</th>
+              <th className="py-2 text-right">Stock</th>
+              <th className="py-2 text-right">Avg Daily Sales</th>
+              <th className="py-2 text-right">Days Until Stockout</th>
+              <th className="py-2">Usual Supplier</th>
+              <th className="py-2 text-right">Their Lead Time</th>
+              <th className="py-2 text-center">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.id} className={`border-b ${r.needsReorder ? "bg-red-50" : ""}`}>
+                <td className="py-3 font-medium">{r.name}</td>
+                <td className="py-3 text-right">{r.stockQuantity}</td>
+                <td className="py-3 text-right">{r.avgDailySales}/day</td>
+                <td className="py-3 text-right">{r.daysUntilStockout} days</td>
+                <td className="py-3">{r.supplierName}</td>
+                <td className="py-3 text-right">{r.leadTimeDays} days</td>
+                <td className="py-3 text-center">
+                  {r.needsReorder ? (
+                    <span className="text-xs bg-red-100 text-red-600 px-3 py-1 rounded-full font-semibold">
+                      Reorder Now
+                    </span>
+                  ) : (
+                    <span className="text-xs bg-green-100 text-green-600 px-3 py-1 rounded-full font-semibold">
+                      OK
+                    </span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {data?.noHistoryCount > 0 && (
+        <p className="text-xs text-slate-400 text-center pt-4">
+          {data.noHistoryCount} product(s) don't have enough purchase or sales history yet to estimate reorder timing.
+        </p>
+      )}
+    </div>
+  );
+}
+
 /* ---------- Export shaping ---------- */
 
 function dateSubtitle(tab, date, from, to) {
@@ -567,6 +630,7 @@ function buildExportShape(tab, data) {
     "vat-summary": "VAT Summary",
     "nssf-return": "NSSF Return",
     "supplier-aging": "Supplier Aging",
+    "reorder-alerts": "Reorder Alerts",
   };
 
   const money = (v) => `UGX ${Number(v ?? 0).toLocaleString()}`;
@@ -705,6 +769,26 @@ function buildExportShape(tab, data) {
       ],
     };
   }
+
+  if (tab === "reorder-alerts") {
+  const rows = data?.rows || [];
+  return {
+    reportTitle: "Reorder Alerts",
+    columns: ["Product", "Stock", "Avg Daily Sales", "Days Until Stockout", "Supplier", "Lead Time (days)", "Status"],
+    rows: rows.map((r) => [
+      r.name,
+      r.stockQuantity,
+      r.avgDailySales,
+      r.daysUntilStockout,
+      r.supplierName,
+      r.leadTimeDays,
+      r.needsReorder ? "Reorder Now" : "OK",
+    ]),
+    summaryLines: [
+      `${rows.filter((r) => r.needsReorder).length} product(s) need reordering now`,
+    ],
+  };
+}
 
   if (tab === "supplier-aging") {
   const rows = data?.rows || [];

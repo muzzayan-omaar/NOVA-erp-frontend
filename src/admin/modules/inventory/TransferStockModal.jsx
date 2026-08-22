@@ -48,9 +48,7 @@ export default function TransferStockModal({ products, onClose, onSuccess }) {
         reason: form.reason,
       });
 
-      toast.success(
-        form.mode === "RELOCATE" ? "Product relocated" : "Stock transferred"
-      );
+      toast.success("Dispatched — the destination store needs to confirm receipt");
       onSuccess();
       onClose();
     } catch (err) {
@@ -65,7 +63,7 @@ export default function TransferStockModal({ products, onClose, onSuccess }) {
       <div className="bg-white p-8 rounded-3xl w-full max-w-md space-y-5">
         <div className="flex justify-between items-center">
           <h2 className="text-xl font-bold flex items-center gap-2">
-            <ArrowRightLeft size={20} /> Transfer Stock
+            <ArrowRightLeft size={20} /> Dispatch Stock Transfer
           </h2>
           <button onClick={onClose}>
             <X />
@@ -174,7 +172,7 @@ export default function TransferStockModal({ products, onClose, onSuccess }) {
             disabled={submitting}
             className="w-full bg-blue-600 text-white py-4 rounded-xl font-semibold disabled:opacity-50"
           >
-            {submitting ? "Transferring..." : "Confirm Transfer"}
+            {submitting ? "Transferring..." : "Dispatch Transfer"}
           </button>
         </form>
       </div>

@@ -34,12 +34,12 @@ export default function StockCountModule() {
       toast.success("Stock count started");
       navigate(`/admin/stock-count/${res.data.id}`);
     } catch (err) {
-      const msg = err?.response?.data?.message || "Failed to start stock count";
-      toast.error(msg);
-      if (err?.response?.data?.stockCountId) {
-        navigate(`/admin/stock-count/${err.response.data.stockCountId}`);
-      }
-    } finally {
+  const msg = err?.response?.data?.message || "Failed to start stock count";
+  toast.error(msg);
+  if (err?.response?.data?.stockCountId) {
+    navigate(`/admin/stock-count/${err.response.data.stockCountId}`);
+  }
+} finally {
       setStarting(false);
     }
   };
@@ -78,14 +78,18 @@ export default function StockCountModule() {
                 <div>
                   <div className="flex items-center gap-3">
                     <span
-                      className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        c.status === "OPEN"
-                          ? "bg-amber-100 text-amber-600"
-                          : "bg-green-100 text-green-600"
-                      }`}
-                    >
-                      {c.status}
-                    </span>
+  className={`px-3 py-1 rounded-full text-xs font-semibold ${
+    c.status === "OPEN"
+      ? "bg-amber-100 text-amber-600"
+      : c.status === "PENDING_REVIEW"
+      ? "bg-blue-100 text-blue-600"
+      : c.status === "REJECTED"
+      ? "bg-red-100 text-red-600"
+      : "bg-green-100 text-green-600"
+  }`}
+>
+  {c.status.replace("_", " ")}
+</span>
                     <p className="font-semibold">{c.store?.name}</p>
                   </div>
                   <p className="text-sm text-slate-500 mt-1">

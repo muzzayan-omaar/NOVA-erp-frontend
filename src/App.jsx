@@ -44,6 +44,7 @@ import TermsPage from "./pages/TermsPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import SupplierDetail from "./admin/modules/suppliers/SupplierDetail";
 import CustomerDetail from "./admin/modules/customers/CustomerDetail";
+import PendingStockCountReviews from "./admin/modules/stock-count/PendingStockCountReviews";
 
 
 import AuthGate from "./guards/AuthGate";
@@ -117,6 +118,8 @@ export default function App() {
     </ProtectedRoute>
   }
 />
+
+
         
   <Route
   path="support"
@@ -152,6 +155,14 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+  path="stock-count/pending"
+  element={
+    <ProtectedRoute permission="audit">
+      <PendingStockCountReviews />
+    </ProtectedRoute>
+  }
+/>
         <Route
           path="stock-count/:id"
           element={

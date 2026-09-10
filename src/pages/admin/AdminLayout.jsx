@@ -264,6 +264,7 @@ export default function AdminLayout() {
           path: "/admin/audit",
           permission: "audit",
         },
+        { title: "Pending Stock Reviews", icon: Inbox, path: "/admin/stock-count/pending", permission: "audit" },
       ],
     },
     {

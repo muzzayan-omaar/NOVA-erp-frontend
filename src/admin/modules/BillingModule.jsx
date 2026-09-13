@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../../services/api";
 import toast from "react-hot-toast";
-import { CreditCard, CheckCircle2, Clock, XCircle } from "lucide-react";
+import { CreditCard, CheckCircle2, Clock, XCircle, HardDriveDownload } from "lucide-react";
 
 const statusStyles = {
   PENDING_VERIFICATION: { icon: Clock, className: "bg-amber-100 text-amber-600" },
@@ -15,6 +15,7 @@ export default function BillingModule() {
   const [packages, setPackages] = useState([]);
   const [cycles, setCycles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [sendingBackup, setSendingBackup] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     packageCode: "",
@@ -107,6 +108,23 @@ export default function BillingModule() {
         Math.ceil((new Date(sub.endDate) - new Date()) / (1000 * 60 * 60 * 24))
       )
     : 0;
+
+  
+    const sendBackupNow = async () => {
+  try {
+    setSendingBackup(true);
+    const res = await api.post("/backup/send-now");
+    if (res.data.emailSent) {
+      toast.success(res.data.message);
+    } else {
+      toast.error(res.data.message);
+    }
+  } catch (err) {
+    toast.error(err?.response?.data?.message || "Failed to send backup");
+  } finally {
+    setSendingBackup(false);
+  }
+};
 
   return (
     <div className="space-y-6">
@@ -261,6 +279,23 @@ export default function BillingModule() {
           </form>
         )}
       </div>
+
+      <div className="bg-white rounded-3xl shadow p-8">
+  <h2 className="text-xl font-bold mb-2 flex items-center gap-2">
+    <HardDriveDownload size={22} /> Data & Backups
+  </h2>
+  <p className="text-slate-500 text-sm mb-4">
+    An Excel snapshot of today's sales, expenses, and stock is emailed to you
+    automatically every night. You can also request one right now.
+  </p>
+  <button
+    onClick={sendBackupNow}
+    disabled={sendingBackup}
+    className="bg-slate-900 text-white px-6 py-3 rounded-2xl font-semibold disabled:opacity-50"
+  >
+    {sendingBackup ? "Sending..." : "Send Backup Now"}
+  </button>
+</div>
 
       <div className="bg-white rounded-3xl shadow p-8">
         <h2 className="text-xl font-bold mb-4">Payment History</h2>

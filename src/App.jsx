@@ -45,6 +45,8 @@ import PrivacyPage from "./pages/PrivacyPage";
 import SupplierDetail from "./admin/modules/suppliers/SupplierDetail";
 import CustomerDetail from "./admin/modules/customers/CustomerDetail";
 import PendingStockCountReviews from "./admin/modules/stock-count/PendingStockCountReviews";
+import QuotesModule from "./admin/modules/QuotesModule";
+import QuoteDetail from "./admin/modules/quotes/QuoteDetail";
 
 
 import AuthGate from "./guards/AuthGate";
@@ -216,6 +218,22 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+  path="quotes"
+  element={
+    <ProtectedRoute permission="sales">
+      <QuotesModule />
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="quotes/:id"
+  element={
+    <ProtectedRoute permission="sales">
+      <QuoteDetail />
+    </ProtectedRoute>
+  }
+/>
 
         <Route
           path="payments"

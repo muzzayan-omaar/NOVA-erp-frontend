@@ -212,6 +212,7 @@ export default function AdminLayout() {
           path: "/admin/sales",
           permission: "sales",
         },
+        { title: "Quotations", icon: FileText, path: "/admin/quotes", permission: "sales" },
         {
           title: "Customers",
           icon: Users,

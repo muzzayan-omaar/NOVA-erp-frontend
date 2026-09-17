@@ -259,6 +259,7 @@ export default function AdminLayout() {
           path: "/admin/pending-requests",
           permission: "audit",
         },
+        { title: "Bank Reconciliation", icon: Landmark, path: "/admin/reconciliation", permission: "audit" },
         {
           title: "Audit Log",
           icon: ShieldAlert,

@@ -21,7 +21,7 @@ const STATUS_STYLES = {
   CANCELLED: "bg-red-100 text-red-600",
 };
 
-const PAYMENT_METHODS = ["CASH", "MOBILE_MONEY", "CARD", "CREDIT"];
+const PAYMENT_METHODS = ["CASH", "MOBILE_MONEY", "CARD", "CREDIT", "BANK_TRANSFER"];
 
 export default function QuoteDetail() {
   const { id } = useParams();

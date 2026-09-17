@@ -7,6 +7,7 @@ export default function NewPurchaseOrderModal({ supplierId, onClose, onSuccess }
   const [products, setProducts] = useState([]);
   const [items, setItems] = useState([{ productId: "", quantityOrdered: "", unitCost: "" }]);
   const [notes, setNotes] = useState("");
+  const [expectedDeliveryDate, setExpectedDeliveryDate] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -38,7 +39,7 @@ export default function NewPurchaseOrderModal({ supplierId, onClose, onSuccess }
 
     try {
       setSubmitting(true);
-      await api.post("/purchase-orders", { supplierId, notes, items: validItems });
+      await api.post("/purchase-orders", { supplierId, notes, items: validItems, expectedDeliveryDate: expectedDeliveryDate || null });
       toast.success("Purchase order created");
       onSuccess();
       onClose();
@@ -110,6 +111,19 @@ export default function NewPurchaseOrderModal({ supplierId, onClose, onSuccess }
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
           />
+
+          <div>
+  <label className="text-sm font-medium text-slate-700">Expected Delivery Date (optional)</label>
+  <input
+    type="date"
+    className="w-full p-4 border rounded-2xl mt-1"
+    value={expectedDeliveryDate}
+    onChange={(e) => setExpectedDeliveryDate(e.target.value)}
+  />
+  <p className="text-xs text-slate-400 mt-1">
+    Setting this lets us track whether this supplier delivers on time.
+  </p>
+</div>
 
           <div className="flex justify-between items-center border-t pt-4">
             <p className="text-slate-500">Order Total</p>

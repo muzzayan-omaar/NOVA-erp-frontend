@@ -16,11 +16,12 @@ export default function ExpensesModule() {
   const [categoryFilter, setCategoryFilter] = useState("All");
 
   const [form, setForm] = useState({
-    description: "",
-    amount: "",
-    category: "General",
-    expenseType: "OPERATING",
-  });
+  description: "",
+  amount: "",
+  category: "General",
+  expenseType: "OPERATING",
+  method: "CASH",
+});
 
   const isGM = user?.role === "GENERAL_MANAGER";
 
@@ -56,6 +57,7 @@ export default function ExpensesModule() {
         description: form.description,
         amount: parseFloat(form.amount),
         expenseType: form.expenseType,
+        method: form.method,
       });
 
       toast.success("Expense recorded");
@@ -127,6 +129,16 @@ export default function ExpensesModule() {
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
+
+          <select
+  className="w-full p-4 border rounded-2xl"
+  value={form.method}
+  onChange={(e) => setForm({ ...form, method: e.target.value })}
+>
+  <option value="CASH">Cash</option>
+  <option value="MOBILE_MONEY">Mobile Money</option>
+  <option value="BANK_TRANSFER">Bank Transfer</option>
+</select>
         </div>
 
         

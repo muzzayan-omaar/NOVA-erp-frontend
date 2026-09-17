@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
@@ -23,7 +24,7 @@ import useOfflineSalesSync from "../hooks/useOfflineSalesSync";
 import { addToQueue } from "../utils/offlineQueue";
 import { hasPermission } from "../utils/hasPermission";
 
-const PAYMENT_METHODS = ["CASH", "MOBILE_MONEY", "CARD", "CREDIT"];
+const PAYMENT_METHODS = ["CASH", "MOBILE_MONEY", "CARD", "CREDIT", "BANK_TRANSFER"];
 
 export default function POS() {
   const [products, setProducts] = useState([]);
@@ -34,6 +35,8 @@ export default function POS() {
   const [lastSale, setLastSale] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState("CASH");
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [customerProjects, setCustomerProjects] = useState([]);
+  const [selectedProjectId, setSelectedProjectId] = useState("");
   const [showScanner, setShowScanner] = useState(false);
 
   const [customers, setCustomers] = useState([]);
@@ -51,6 +54,17 @@ export default function POS() {
     fetchProducts();
     api.get("/customers").then((res) => setCustomers(res.data)).catch(() => {});
   }, []);
+
+  useEffect(() => {
+  if (selectedCustomerId) {
+    api.get(`/customers/${selectedCustomerId}/projects`)
+      .then((res) => setCustomerProjects(res.data.filter((p) => p.isActive)))
+      .catch(() => setCustomerProjects([]));
+  } else {
+    setCustomerProjects([]);
+    setSelectedProjectId("");
+  }
+}, [selectedCustomerId]);
 
   const fetchProducts = async () => {
     try {
@@ -204,6 +218,7 @@ export default function POS() {
         quantity: item.qty,
       })),
       discount: 0,
+      projectId: selectedProjectId || null,
       clientReferenceId,
       customerId: splitMode
         ? finalLines.some((l) => l.method === "CREDIT")
@@ -238,6 +253,7 @@ export default function POS() {
       setShowReceipt(true);
       setCart([]);
       setSelectedCustomerId("");
+      setSelectedProjectId("");
       setSplitLines([]);
       setSplitDraft({ method: "CASH", amount: "", reference: "" });
       toast.success(`Sale completed via ${displayMethod}`);
@@ -272,6 +288,7 @@ export default function POS() {
         setShowReceipt(true);
         setCart([]);
         setSelectedCustomerId("");
+        setSelectedProjectId("");
         setSplitLines([]);
         setSplitDraft({ method: "CASH", amount: "", reference: "" });
         toast.success("You're offline — sale saved and will sync automatically");
@@ -548,6 +565,18 @@ export default function POS() {
                         </option>
                       ))}
                     </select>
+                    {customerProjects.length > 0 && (
+  <select
+    className="w-full p-4 border rounded-2xl mt-3"
+    value={selectedProjectId}
+    onChange={(e) => setSelectedProjectId(e.target.value)}
+  >
+    <option value="">No specific project</option>
+    {customerProjects.map((p) => (
+      <option key={p.id} value={p.id}>{p.name}</option>
+    ))}
+  </select>
+)}
                   </div>
                 )}
               </>
@@ -586,6 +615,18 @@ export default function POS() {
                       </option>
                     ))}
                   </select>
+                  {customerProjects.length > 0 && (
+  <select
+    className="w-full p-4 border rounded-2xl mt-3"
+    value={selectedProjectId}
+    onChange={(e) => setSelectedProjectId(e.target.value)}
+  >
+    <option value="">No specific project</option>
+    {customerProjects.map((p) => (
+      <option key={p.id} value={p.id}>{p.name}</option>
+    ))}
+  </select>
+)}
                   <input
                     type="number"
                     placeholder="Amount"
@@ -608,30 +649,43 @@ export default function POS() {
                 </div>
 
                 {(splitHasCredit || splitDraft.method === "CREDIT") && (
-                  <div>
-                    <label className="text-sm text-slate-500 mb-2 flex items-center gap-2">
-                      <UserCircle size={16} /> Customer (required for the credit portion)
-                    </label>
-                    <select
-                      className="w-full p-4 border rounded-2xl"
-                      value={selectedCustomerId}
-                      onChange={(e) => setSelectedCustomerId(e.target.value)}
-                    >
-                      <option value="">Select customer</option>
-                      {customers.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                          {c.totalCredit > 0 ? ` (owes UGX ${Number(c.totalCredit).toLocaleString()}` : ""}
-                          {c.creditLimit > 0
-                            ? ` / limit UGX ${Number(c.creditLimit).toLocaleString()})`
-                            : c.totalCredit > 0
-                              ? ")"
-                              : ""}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
+  <div>
+    <label className="text-sm text-slate-500 mb-2 flex items-center gap-2">
+      <UserCircle size={16} /> Customer (required for the credit portion)
+    </label>
+    <select
+      className="w-full p-4 border rounded-2xl"
+      value={selectedCustomerId}
+      onChange={(e) => setSelectedCustomerId(e.target.value)}
+    >
+      <option value="">Select customer</option>
+      {customers.map((c) => (
+        <option key={c.id} value={c.id}>
+          {c.name}
+          {c.totalCredit > 0 ? ` (owes UGX ${Number(c.totalCredit).toLocaleString()}` : ""}
+          {c.creditLimit > 0
+            ? ` / limit UGX ${Number(c.creditLimit).toLocaleString()})`
+            : c.totalCredit > 0
+              ? ")"
+              : ""}
+        </option>
+      ))}
+    </select>
+
+    {customerProjects.length > 0 && (
+      <select
+        className="w-full p-4 border rounded-2xl mt-3"
+        value={selectedProjectId}
+        onChange={(e) => setSelectedProjectId(e.target.value)}
+      >
+        <option value="">No specific project</option>
+        {customerProjects.map((p) => (
+          <option key={p.id} value={p.id}>{p.name}</option>
+        ))}
+      </select>
+    )}
+  </div>
+)}
               </div>
             )}
 

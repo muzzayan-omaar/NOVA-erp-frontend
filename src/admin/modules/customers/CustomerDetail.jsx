@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../../../services/api";
 import toast from "react-hot-toast";
-import { ArrowLeft, Phone, DollarSign, Trash2 } from "lucide-react";
+import { ArrowLeft, Phone, DollarSign, Trash2, Building2, Plus, X } from "lucide-react";
+
 
 export default function CustomerDetail() {
   const { id } = useParams();
@@ -18,6 +19,9 @@ export default function CustomerDetail() {
   const [submittingPayment, setSubmittingPayment] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [editingLimit, setEditingLimit] = useState(false);
+  const [showProjectForm, setShowProjectForm] = useState(false);
+  const [projectForm, setProjectForm] = useState({ name: "", location: "" });
+  const [creatingProject, setCreatingProject] = useState(false);
   const [limitInput, setLimitInput] = useState("");
 
   const fetchAll = async () => {
@@ -91,7 +95,35 @@ export default function CustomerDetail() {
   if (!data) return <p className="text-center py-20">Customer not found</p>;
 
   const { customer, creditSales, payments, analytics } = data;
+  const createProject = async (e) => {
+  e.preventDefault();
+  if (!projectForm.name) {
+    toast.error("Project name is required");
+    return;
+  }
+  try {
+    setCreatingProject(true);
+    await api.post(`/customers/${id}/projects`, projectForm);
+    toast.success("Project added");
+    setProjectForm({ name: "", location: "" });
+    setShowProjectForm(false);
+    fetchAll();
+  } catch (err) {
+    toast.error(err?.response?.data?.message || "Failed to add project");
+  } finally {
+    setCreatingProject(false);
+  }
+};
 
+const toggleProjectActive = async (project) => {
+  try {
+    await api.patch(`/customers/${id}/projects/${project.id}`, { isActive: !project.isActive });
+    toast.success(project.isActive ? "Project archived" : "Project reactivated");
+    fetchAll();
+  } catch (err) {
+    toast.error("Failed to update project");
+  }
+};
   return (
     <div className="space-y-6">
       <button
@@ -203,6 +235,80 @@ export default function CustomerDetail() {
       </div>
 
       <div className="bg-white rounded-3xl shadow p-8">
+  <div className="flex justify-between items-center mb-4">
+    <h2 className="text-lg font-bold flex items-center gap-2">
+      <Building2 size={20} /> Job Sites / Projects
+    </h2>
+    <button
+      onClick={() => setShowProjectForm(!showProjectForm)}
+      className="text-sm bg-blue-600 text-white px-4 py-2 rounded-xl font-medium flex items-center gap-2"
+    >
+      {showProjectForm ? <X size={16} /> : <Plus size={16} />}
+      {showProjectForm ? "Cancel" : "Add Project"}
+    </button>
+  </div>
+
+  <p className="text-xs text-slate-400 mb-4">
+    Projects tag which job site a sale went to — the credit balance above is
+    always shared across all of them, not split per project.
+  </p>
+
+  {showProjectForm && (
+    <form onSubmit={createProject} className="bg-slate-50 rounded-2xl p-4 mb-4 flex gap-3">
+      <input
+        placeholder="Project name (e.g. Kira Road Site)"
+        className="flex-1 p-3 border rounded-xl text-sm"
+        value={projectForm.name}
+        onChange={(e) => setProjectForm({ ...projectForm, name: e.target.value })}
+      />
+      <input
+        placeholder="Location (optional)"
+        className="flex-1 p-3 border rounded-xl text-sm"
+        value={projectForm.location}
+        onChange={(e) => setProjectForm({ ...projectForm, location: e.target.value })}
+      />
+      <button
+        type="submit"
+        disabled={creatingProject}
+        className="bg-blue-600 text-white px-5 rounded-xl font-medium disabled:opacity-50"
+      >
+        Save
+      </button>
+    </form>
+  )}
+
+  {data.projects?.length === 0 && data.untaggedSalesTotal === 0 ? (
+    <p className="text-slate-400 text-sm text-center py-6">No projects yet</p>
+  ) : (
+    <div className="space-y-2">
+      {data.projects?.map((p) => (
+        <div key={p.id} className="flex justify-between items-center border rounded-xl p-3 text-sm">
+          <div>
+            <p className={`font-medium ${!p.isActive ? "text-slate-400 line-through" : ""}`}>{p.name}</p>
+            {p.location && <p className="text-xs text-slate-400">{p.location}</p>}
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="font-semibold">UGX {p.salesTotal.toLocaleString()}</span>
+            <button
+              onClick={() => toggleProjectActive(p)}
+              className="text-xs text-blue-600 underline"
+            >
+              {p.isActive ? "Archive" : "Reactivate"}
+            </button>
+          </div>
+        </div>
+      ))}
+      {data.untaggedSalesTotal > 0 && (
+        <div className="flex justify-between items-center border rounded-xl p-3 text-sm bg-slate-50">
+          <span className="text-slate-500">Not tagged to a project</span>
+          <span className="font-semibold">UGX {data.untaggedSalesTotal.toLocaleString()}</span>
+        </div>
+      )}
+    </div>
+  )}
+</div>
+
+      <div className="bg-white rounded-3xl shadow p-8">
         <h2 className="text-lg font-bold mb-4">Credit Sales</h2>
         {creditSales.length === 0 ? (
           <p className="text-slate-500 text-center py-8">No credit sales yet</p>
@@ -275,7 +381,7 @@ export default function CustomerDetail() {
               >
                 <option value="CASH">Cash</option>
                 <option value="MOBILE_MONEY">Mobile Money</option>
-                <option value="CARD">Card</option>
+                <option value="BANK_TRANSFER">Bank Transfer</option>
               </select>
               <input
                 placeholder="Notes (optional)"

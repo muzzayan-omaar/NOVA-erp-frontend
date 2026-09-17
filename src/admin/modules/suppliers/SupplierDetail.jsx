@@ -11,6 +11,9 @@ import {
   PackageCheck,
   Ban,
   Mail,
+  Star,
+  Clock,
+  TrendingUp,
 } from "lucide-react";
 import NewPurchaseOrderModal from "./NewPurchaseOrderModal";
 
@@ -36,24 +39,28 @@ export default function SupplierDetail() {
   const [receivingOrderId, setReceivingOrderId] = useState(null);
   const [receiveQuantities, setReceiveQuantities] = useState({});
   const [receivingExtraCost, setReceivingExtraCost] = useState("");
+  const [reliability, setReliability] = useState(null);
+  const [paymentMethod, setPaymentMethod] = useState("CASH");
   const [receivingExtraCostNotes, setReceivingExtraCostNotes] = useState("");
 
   const fetchAll = async () => {
-    try {
-      setLoading(true);
-      const [detailRes, ordersRes] = await Promise.all([
-        api.get(`/suppliers/${id}/detail`),
-        api.get("/purchase-orders", { params: { supplierId: id } }),
-      ]);
-      setData(detailRes.data);
-      setOrders(ordersRes.data);
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to load supplier");
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    setLoading(true);
+    const [detailRes, ordersRes, reliabilityRes] = await Promise.all([
+      api.get(`/suppliers/${id}/detail`),
+      api.get("/purchase-orders", { params: { supplierId: id } }),
+      api.get(`/suppliers/${id}/reliability`),
+    ]);
+    setData(detailRes.data);
+    setOrders(ordersRes.data);
+    setReliability(reliabilityRes.data);
+  } catch (err) {
+    console.error(err);
+    toast.error("Failed to load supplier");
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchAll();
@@ -115,25 +122,30 @@ export default function SupplierDetail() {
 };
 
   const handlePayment = async (e) => {
-    e.preventDefault();
-    if (!paymentAmount || Number(paymentAmount) <= 0) {
-      toast.error("Enter a valid amount");
-      return;
-    }
-    try {
-      setSubmittingPayment(true);
-      await api.post(`/suppliers/${id}/pay`, { amount: Number(paymentAmount), notes: paymentNotes });
-      toast.success("Payment recorded");
-      setShowPayment(false);
-      setPaymentAmount("");
-      setPaymentNotes("");
-      fetchAll();
-    } catch (err) {
-      toast.error(err?.response?.data?.message || "Failed to record payment");
-    } finally {
-      setSubmittingPayment(false);
-    }
-  };
+  e.preventDefault();
+  if (!paymentAmount || Number(paymentAmount) <= 0) {
+    toast.error("Enter a valid amount");
+    return;
+  }
+  try {
+    setSubmittingPayment(true);
+    await api.post(`/suppliers/${id}/pay`, {
+      amount: Number(paymentAmount),
+      method: paymentMethod,
+      notes: paymentNotes,
+    });
+    toast.success("Payment recorded");
+    setShowPayment(false);
+    setPaymentAmount("");
+    setPaymentNotes("");
+    setPaymentMethod("CASH");
+    fetchAll();
+  } catch (err) {
+    toast.error(err?.response?.data?.message || "Failed to record payment");
+  } finally {
+    setSubmittingPayment(false);
+  }
+};
 
   if (loading) return <p className="text-center py-20">Loading...</p>;
   if (!data) return <p className="text-center py-20">Supplier not found</p>;
@@ -206,6 +218,67 @@ export default function SupplierDetail() {
           </p>
         </div>
       </div>
+
+      {reliability && reliability.orderCount > 0 && (
+  <div className="bg-white rounded-3xl shadow p-8">
+    <h2 className="text-lg font-bold mb-1 flex items-center gap-2">
+      <Star size={20} /> Supplier Reliability
+    </h2>
+    <p className="text-xs text-slate-400 mb-6">
+      Based on {reliability.orderCount} received order(s) — the more history, the more this means.
+    </p>
+
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="bg-slate-50 rounded-2xl p-5 text-center">
+        <p className="text-3xl font-bold">
+          {reliability.reliabilityScore !== null ? reliability.reliabilityScore : "—"}
+        </p>
+        <p className="text-xs text-slate-500 mt-1">Reliability Score</p>
+      </div>
+      <div className="bg-slate-50 rounded-2xl p-5 text-center">
+        <p className="text-3xl font-bold">
+          {reliability.fulfillmentRate !== null ? `${reliability.fulfillmentRate}%` : "—"}
+        </p>
+        <p className="text-xs text-slate-500 mt-1">Fulfillment Rate</p>
+      </div>
+      <div className="bg-slate-50 rounded-2xl p-5 text-center">
+        <p className="text-3xl font-bold">
+          {reliability.avgLeadTimeDays !== null ? `${reliability.avgLeadTimeDays}d` : "—"}
+        </p>
+        <p className="text-xs text-slate-500 mt-1">Avg Lead Time</p>
+      </div>
+      <div className="bg-slate-50 rounded-2xl p-5 text-center">
+        <p className="text-3xl font-bold">
+          {reliability.onTimeRate !== null ? `${reliability.onTimeRate}%` : "No data"}
+        </p>
+        <p className="text-xs text-slate-500 mt-1">
+          On-Time Rate {reliability.onTimeSampleSize > 0 ? `(${reliability.onTimeSampleSize} orders)` : ""}
+        </p>
+      </div>
+    </div>
+
+    <p className="text-xs text-slate-400 mb-4 flex items-center gap-2">
+      <TrendingUp size={14} /> Score based on: {reliability.scoreBasis}
+    </p>
+
+    <div className="space-y-2">
+      {reliability.recentOrders.map((o) => (
+        <div key={o.id} className="flex justify-between items-center text-sm border-b py-2">
+          <span className="text-slate-500 flex items-center gap-1">
+            <Clock size={12} /> {new Date(o.receivedAt).toLocaleDateString()}
+          </span>
+          <span>{o.receivedQty}/{o.orderedQty} received ({o.fulfilled}%)</span>
+          <span>{o.leadDays !== null ? `${o.leadDays}d lead time` : "—"}</span>
+          {o.onTime !== null && (
+            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${o.onTime ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"}`}>
+              {o.onTime ? "On Time" : "Late"}
+            </span>
+          )}
+        </div>
+      ))}
+    </div>
+  </div>
+)}
 
       <div className="bg-white rounded-3xl shadow p-8">
         <h2 className="text-lg font-bold mb-4">Purchase Orders</h2>
@@ -364,6 +437,58 @@ export default function SupplierDetail() {
                 value={paymentAmount}
                 onChange={(e) => setPaymentAmount(e.target.value)}
               />
+              {showPayment && (
+  <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+    <div className="bg-white p-8 rounded-3xl w-full max-w-md space-y-4">
+      <h2 className="text-xl font-bold flex items-center gap-2">
+        <DollarSign /> Record Payment
+      </h2>
+      <p className="text-sm text-slate-500">
+        Currently owed: UGX {Number(analytics.currentlyOwed).toLocaleString()}
+      </p>
+      <form onSubmit={handlePayment} className="space-y-4">
+        <input
+          type="number"
+          placeholder="Amount paid"
+          className="w-full p-4 border rounded-2xl"
+          value={paymentAmount}
+          onChange={(e) => setPaymentAmount(e.target.value)}
+        />
+        <select
+          className="w-full p-4 border rounded-2xl"
+          value={paymentMethod}
+          onChange={(e) => setPaymentMethod(e.target.value)}
+        >
+          <option value="CASH">Cash</option>
+          <option value="MOBILE_MONEY">Mobile Money</option>
+          <option value="BANK_TRANSFER">Bank Transfer</option>
+        </select>
+        <input
+          placeholder="Notes (optional)"
+          className="w-full p-4 border rounded-2xl"
+          value={paymentNotes}
+          onChange={(e) => setPaymentNotes(e.target.value)}
+        />
+        <div className="flex gap-3">
+          <button
+            type="submit"
+            disabled={submittingPayment}
+            className="flex-1 bg-green-600 text-white py-4 rounded-2xl font-semibold disabled:opacity-50"
+          >
+            {submittingPayment ? "Saving..." : "Record Payment"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowPayment(false)}
+            className="flex-1 bg-slate-200 py-4 rounded-2xl font-semibold"
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
               <input
                 placeholder="Notes (optional)"
                 className="w-full p-4 border rounded-2xl"

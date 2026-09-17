@@ -47,6 +47,7 @@ import CustomerDetail from "./admin/modules/customers/CustomerDetail";
 import PendingStockCountReviews from "./admin/modules/stock-count/PendingStockCountReviews";
 import QuotesModule from "./admin/modules/QuotesModule";
 import QuoteDetail from "./admin/modules/quotes/QuoteDetail";
+import BankReconciliationModule from "./admin/modules/BankReconciliationModule";
 
 
 import AuthGate from "./guards/AuthGate";
@@ -296,6 +297,14 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+  path="reconciliation"
+  element={
+    <ProtectedRoute permission="audit">
+      <BankReconciliationModule />
+    </ProtectedRoute>
+  }
+/>
 
         <Route
           path="reports"

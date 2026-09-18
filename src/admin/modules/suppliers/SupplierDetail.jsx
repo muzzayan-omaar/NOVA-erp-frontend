@@ -421,23 +421,6 @@ export default function SupplierDetail() {
       )}
 
       {showPayment && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white p-8 rounded-3xl w-full max-w-md space-y-4">
-            <h2 className="text-xl font-bold flex items-center gap-2">
-              <DollarSign /> Record Payment
-            </h2>
-            <p className="text-sm text-slate-500">
-              Currently owed: UGX {Number(analytics.currentlyOwed).toLocaleString()}
-            </p>
-            <form onSubmit={handlePayment} className="space-y-4">
-              <input
-                type="number"
-                placeholder="Amount paid"
-                className="w-full p-4 border rounded-2xl"
-                value={paymentAmount}
-                onChange={(e) => setPaymentAmount(e.target.value)}
-              />
-              {showPayment && (
   <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
     <div className="bg-white p-8 rounded-3xl w-full max-w-md space-y-4">
       <h2 className="text-xl font-bold flex items-center gap-2">
@@ -489,32 +472,6 @@ export default function SupplierDetail() {
     </div>
   </div>
 )}
-              <input
-                placeholder="Notes (optional)"
-                className="w-full p-4 border rounded-2xl"
-                value={paymentNotes}
-                onChange={(e) => setPaymentNotes(e.target.value)}
-              />
-              <div className="flex gap-3">
-                <button
-                  type="submit"
-                  disabled={submittingPayment}
-                  className="flex-1 bg-green-600 text-white py-4 rounded-2xl font-semibold disabled:opacity-50"
-                >
-                  {submittingPayment ? "Saving..." : "Record Payment"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowPayment(false)}
-                  className="flex-1 bg-slate-200 py-4 rounded-2xl font-semibold"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

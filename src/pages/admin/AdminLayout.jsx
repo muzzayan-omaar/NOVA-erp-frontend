@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   ClipboardList,
   Users,
+  Landmark,
   Package,
   DollarSign,
   ShoppingCart,

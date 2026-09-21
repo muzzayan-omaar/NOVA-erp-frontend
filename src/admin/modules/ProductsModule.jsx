@@ -2,17 +2,18 @@ import { useEffect, useState } from "react";
 import api from "../../services/api";
 import { Plus, Edit2, Trash2, Package, AlertTriangle } from "lucide-react";
 import toast from "react-hot-toast";
+import ManageUnitsSerialsModal from "./products/ManageUnitsSerialsModal";
 
 import useAuthStore from "../../store/useAuthStore";
 
 export default function ProductsModule() {
-
   const { user } = useAuthStore();
 
   const [products, setProducts] = useState([]);
   const [lowStock, setLowStock] = useState([]);
   const [mode, setMode] = useState("list"); // list, create, edit
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [managingProduct, setManagingProduct] = useState(null);
   const [form, setForm] = useState({
     name: "",
     barcode: "",
@@ -20,7 +21,7 @@ export default function ProductsModule() {
     buyingPrice: "",
     sellingPrice: "",
     stockQuantity: "",
-    unitType: "pcs"
+    unitType: "pcs",
   });
 
   const fetchProducts = async () => {
@@ -34,19 +35,21 @@ export default function ProductsModule() {
   };
 
   useEffect(() => {
-  if (!user?.activeStoreId && !user?.storeId) return;
+    if (!user?.activeStoreId && !user?.storeId) return;
 
-  fetchProducts();
-  fetchLowStock();
-
-}, [
-  user?.activeStoreId,
-  user?.storeId
-]);
+    fetchProducts();
+    fetchLowStock();
+  }, [user?.activeStoreId, user?.storeId]);
 
   const resetForm = () => {
     setForm({
-      name: "", barcode: "", sku: "", buyingPrice: "", sellingPrice: "", stockQuantity: "", unitType: "pcs"
+      name: "",
+      barcode: "",
+      sku: "",
+      buyingPrice: "",
+      sellingPrice: "",
+      stockQuantity: "",
+      unitType: "pcs",
     });
   };
 
@@ -92,7 +95,10 @@ export default function ProductsModule() {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Products Management</h1>
         <button
-          onClick={() => { setMode("create"); resetForm(); }}
+          onClick={() => {
+            setMode("create");
+            resetForm();
+          }}
           className="bg-blue-600 text-white px-5 py-3 rounded-2xl flex items-center gap-2 hover:bg-blue-700"
         >
           <Plus size={20} /> New Product
@@ -113,7 +119,7 @@ export default function ProductsModule() {
         <div className="col-span-5 bg-white rounded-3xl shadow p-6">
           <h2 className="font-bold text-lg mb-4">All Products</h2>
           <div className="space-y-3 max-h-[600px] overflow-auto">
-            {products.map(p => (
+            {products.map((p) => (
               <div
                 key={p.id}
                 onClick={() => {
@@ -126,12 +132,22 @@ export default function ProductsModule() {
                 <div className="flex justify-between">
                   <div>
                     <p className="font-semibold">{p.name}</p>
-                    <p className="text-xs text-slate-500">SKU: {p.sku || 'N/A'}</p>
+                    <p className="text-xs text-slate-500">SKU: {p.sku || "N/A"}</p>
                   </div>
                   <div className="text-right">
                     <p className="font-bold">UGX {p.sellingPrice.toLocaleString()}</p>
                     <p className="text-sm text-slate-500">Stock: {p.stockQuantity}</p>
                   </div>
+                </div>
+
+                {/* Units & Serials button — stopPropagation so it doesn't open the edit form */}
+                <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    onClick={() => setManagingProduct(p)}
+                    className="text-xs text-blue-600 underline"
+                  >
+                    Units & Serials
+                  </button>
                 </div>
               </div>
             ))}
@@ -153,13 +169,32 @@ export default function ProductsModule() {
               </h2>
 
               <div className="grid grid-cols-2 gap-4">
-                <input placeholder="Product Name" className="p-4 border rounded-2xl" value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
-                <input placeholder="Barcode" className="p-4 border rounded-2xl" value={form.barcode} onChange={e => setForm({...form, barcode: e.target.value})} />
+                <input
+                  placeholder="Product Name"
+                  className="p-4 border rounded-2xl"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                />
+                <input
+                  placeholder="Barcode"
+                  className="p-4 border rounded-2xl"
+                  value={form.barcode}
+                  onChange={(e) => setForm({ ...form, barcode: e.target.value })}
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <input placeholder="SKU" className="p-4 border rounded-2xl" value={form.sku} onChange={e => setForm({...form, sku: e.target.value})} />
-                <select className="p-4 border rounded-2xl" value={form.unitType} onChange={e => setForm({...form, unitType: e.target.value})}>
+                <input
+                  placeholder="SKU"
+                  className="p-4 border rounded-2xl"
+                  value={form.sku}
+                  onChange={(e) => setForm({ ...form, sku: e.target.value })}
+                />
+                <select
+                  className="p-4 border rounded-2xl"
+                  value={form.unitType}
+                  onChange={(e) => setForm({ ...form, unitType: e.target.value })}
+                >
                   <option value="pcs">Pieces</option>
                   <option value="box">Box</option>
                   <option value="roll">Roll</option>
@@ -168,9 +203,27 @@ export default function ProductsModule() {
               </div>
 
               <div className="grid grid-cols-3 gap-4">
-                <input type="number" placeholder="Buying Price" className="p-4 border rounded-2xl" value={form.buyingPrice} onChange={e => setForm({...form, buyingPrice: e.target.value})} />
-                <input type="number" placeholder="Selling Price" className="p-4 border rounded-2xl" value={form.sellingPrice} onChange={e => setForm({...form, sellingPrice: e.target.value})} />
-                <input type="number" placeholder="Stock Quantity" className="p-4 border rounded-2xl" value={form.stockQuantity} onChange={e => setForm({...form, stockQuantity: e.target.value})} />
+                <input
+                  type="number"
+                  placeholder="Buying Price"
+                  className="p-4 border rounded-2xl"
+                  value={form.buyingPrice}
+                  onChange={(e) => setForm({ ...form, buyingPrice: e.target.value })}
+                />
+                <input
+                  type="number"
+                  placeholder="Selling Price"
+                  className="p-4 border rounded-2xl"
+                  value={form.sellingPrice}
+                  onChange={(e) => setForm({ ...form, sellingPrice: e.target.value })}
+                />
+                <input
+                  type="number"
+                  placeholder="Stock Quantity"
+                  className="p-4 border rounded-2xl"
+                  value={form.stockQuantity}
+                  onChange={(e) => setForm({ ...form, stockQuantity: e.target.value })}
+                />
               </div>
 
               <div className="flex gap-4 pt-4">
@@ -194,6 +247,15 @@ export default function ProductsModule() {
           )}
         </div>
       </div>
+
+      {/* Manage Units & Serials Modal */}
+      {managingProduct && (
+        <ManageUnitsSerialsModal
+          product={managingProduct}
+          onClose={() => setManagingProduct(null)}
+          onChanged={fetchProducts}
+        />
+      )}
     </div>
   );
 }

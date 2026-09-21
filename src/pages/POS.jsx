@@ -1,25 +1,13 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import useAuthStore from "../store/useAuthStore";
-import {
-  ShoppingCart,
-  LogOut,
-  Search,
-  X,
-  Loader2,
-  LayoutDashboard,
-  WifiOff,
-  CloudUpload,
-  AlertCircle,
-  UserCircle,
-  Plus,
-  Trash2,
-} from "lucide-react";
+import { ShoppingCart, LogOut, Search, X, Loader2, LayoutDashboard, WifiOff, CloudUpload, AlertCircle, UserCircle, Plus, Trash2, Hash } from "lucide-react";
 import toast from "react-hot-toast";
 import ReceiptModal from "../components/pos/ReceiptModal";
 import BarcodeScanner from "../components/pos/BarcodeScanner";
+import SerialPickerModal from "../components/pos/SerialPickerModal";
+import UnitPickerModal from "../components/pos/UnitPickerModal";
 import useOfflineSalesSync from "../hooks/useOfflineSalesSync";
 import { addToQueue } from "../utils/offlineQueue";
 import { hasPermission } from "../utils/hasPermission";
@@ -35,8 +23,6 @@ export default function POS() {
   const [lastSale, setLastSale] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState("CASH");
   const [checkoutLoading, setCheckoutLoading] = useState(false);
-  const [customerProjects, setCustomerProjects] = useState([]);
-  const [selectedProjectId, setSelectedProjectId] = useState("");
   const [showScanner, setShowScanner] = useState(false);
 
   const [customers, setCustomers] = useState([]);
@@ -46,6 +32,14 @@ export default function POS() {
   const [splitLines, setSplitLines] = useState([]);
   const [splitDraft, setSplitDraft] = useState({ method: "CASH", amount: "", reference: "" });
 
+  // Multi-UOM / serial picker state
+  const [pickerProduct, setPickerProduct] = useState(null);
+  const [pickerType, setPickerType] = useState(null); // "unit" | "serial" | null
+  // Same-session guard: once a serial is used (in cart OR already queued
+  // offline), it isn't offered again until the app reloads/syncs — this
+  // protects a single device, not multiple devices offline simultaneously.
+  const [reservedSerialIds, setReservedSerialIds] = useState([]);
+
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
   const { isOnline, pendingCount, failedCount, syncNow } = useOfflineSalesSync();
@@ -54,17 +48,6 @@ export default function POS() {
     fetchProducts();
     api.get("/customers").then((res) => setCustomers(res.data)).catch(() => {});
   }, []);
-
-  useEffect(() => {
-  if (selectedCustomerId) {
-    api.get(`/customers/${selectedCustomerId}/projects`)
-      .then((res) => setCustomerProjects(res.data.filter((p) => p.isActive)))
-      .catch(() => setCustomerProjects([]));
-  } else {
-    setCustomerProjects([]);
-    setSelectedProjectId("");
-  }
-}, [selectedCustomerId]);
 
   const fetchProducts = async () => {
     try {
@@ -95,33 +78,84 @@ export default function POS() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cart, splitMode, splitLines, paymentMethod, selectedCustomerId]);
 
-  const addToCart = (product) => {
-    const existing = cart.find((item) => item.id === product.id);
-    if (existing) {
-      setCart(
-        cart.map((item) =>
-          item.id === product.id ? { ...item, qty: item.qty + 1 } : item
-        )
-      );
+  /* ---------- Adding to cart: base unit, chosen unit, or a specific serial ---------- */
+
+  const handleProductClick = (product) => {
+    if (product.isSerialized) {
+      setPickerProduct(product);
+      setPickerType("serial");
+    } else if (product.hasUnits) {
+      setPickerProduct(product);
+      setPickerType("unit");
     } else {
-      setCart([...cart, { ...product, qty: 1 }]);
+      addSimpleBaseUnit(product);
     }
+  };
+
+  const addSimpleBaseUnit = (product) => {
+    setCart((prev) => {
+      const existing = prev.find(
+        (item) => item.productId === product.id && !item.productUnitId && !item.productSerialId
+      );
+      if (existing) {
+        return prev.map((item) =>
+          item.cartLineId === existing.cartLineId ? { ...item, qty: item.qty + 1 } : item
+        );
+      }
+      return [
+        ...prev,
+        {
+          cartLineId: crypto.randomUUID(),
+          productId: product.id,
+          name: product.name,
+          unitLabel: product.unitType || "Piece",
+          unitPrice: product.sellingPrice,
+          qty: 1,
+          productUnitId: null,
+          productSerialId: null,
+          serialNumber: null,
+          conversionFactor: 1,
+        },
+      ];
+    });
     toast.success(`Added ${product.name}`);
   };
 
-  const removeFromCart = (id) => setCart(cart.filter((item) => item.id !== id));
-
-  const updateQuantity = (id, newQty) => {
-    if (newQty < 1) return;
-    setCart(
-      cart.map((item) => (item.id === id ? { ...item, qty: newQty } : item))
-    );
+  const addUnitLine = (line) => {
+    setCart((prev) => {
+      const existing = prev.find(
+        (item) => item.productId === line.productId && item.productUnitId === line.productUnitId
+      );
+      if (existing) {
+        return prev.map((item) =>
+          item.cartLineId === existing.cartLineId ? { ...item, qty: item.qty + line.qty } : item
+        );
+      }
+      return [...prev, line];
+    });
+    toast.success(`Added ${line.name} (${line.unitLabel})`);
   };
 
-  // VAT-exclusive prices → add 18% (same logic as backend)
-  const subtotal = cart.reduce((sum, item) => sum + item.sellingPrice * item.qty, 0);
-  const vatAmount = Math.round(subtotal * 0.18 * 100) / 100;
-  const total = subtotal + vatAmount;
+  const addSerialLine = (line) => {
+    setCart((prev) => [...prev, line]);
+    setReservedSerialIds((prev) => [...prev, line.productSerialId]);
+    toast.success(`Added ${line.name} — SN: ${line.serialNumber}`);
+  };
+
+  const removeFromCart = (cartLineId) => {
+    const line = cart.find((c) => c.cartLineId === cartLineId);
+    if (line?.productSerialId) {
+      setReservedSerialIds((prev) => prev.filter((id) => id !== line.productSerialId));
+    }
+    setCart(cart.filter((item) => item.cartLineId !== cartLineId));
+  };
+
+  const updateQuantity = (cartLineId, newQty) => {
+    if (newQty < 1) return;
+    setCart(cart.map((item) => (item.cartLineId === cartLineId ? { ...item, qty: newQty } : item)));
+  };
+
+  const total = cart.reduce((sum, item) => sum + item.unitPrice * item.qty, 0);
 
   const generateClientId = () => {
     if (typeof crypto !== "undefined" && crypto.randomUUID) {
@@ -133,8 +167,7 @@ export default function POS() {
   /* ---------- Split payment helpers ---------- */
 
   const splitAssigned = splitLines.reduce((sum, l) => sum + (Number(l.amount) || 0), 0);
-  const draftAmount = Number(splitDraft.amount) || 0;
-  const splitRemaining = total - splitAssigned - draftAmount; // live while typing
+  const splitRemaining = total - splitAssigned;
   const splitHasCredit = splitLines.some((l) => l.method === "CREDIT");
 
   const addSplitLine = () => {
@@ -143,13 +176,10 @@ export default function POS() {
       toast.error("Enter a valid amount for this payment line");
       return;
     }
-
-    const remainingBeforeThisLine = total - splitAssigned;
-    if (amt > remainingBeforeThisLine + 0.01) {
+    if (amt > splitRemaining + 0.01) {
       toast.error("That amount is more than what's left to cover");
       return;
     }
-
     setSplitLines([...splitLines, { ...splitDraft, amount: amt }]);
     setSplitDraft({ method: "CASH", amount: "", reference: "" });
   };
@@ -169,37 +199,16 @@ export default function POS() {
   const handleCheckout = async () => {
     if (cart.length === 0 || checkoutLoading) return;
 
-    // Always declare so it is in scope for the payload
-    let finalLines = [...splitLines];
-
     if (splitMode) {
-      const draftAmt = Number(splitDraft.amount) || 0;
-
-      // Auto-add whatever is currently typed in the draft input
-      if (draftAmt > 0) {
-        const remainingBeforeDraft = total - splitAssigned;
-        if (draftAmt > remainingBeforeDraft + 0.01) {
-          toast.error("That amount is more than what's left to cover");
-          return;
-        }
-        finalLines.push({ ...splitDraft, amount: draftAmt });
-      }
-
-      const finalAssigned = finalLines.reduce((sum, l) => sum + Number(l.amount), 0);
-
-      if (finalLines.length === 0) {
+      if (splitLines.length === 0) {
         toast.error("Add at least one payment line");
         return;
       }
-
-      if (Math.abs(total - finalAssigned) > 1) {
-        toast.error(
-          `Payment lines don't add up to the total (UGX ${(total - finalAssigned).toLocaleString()} remaining)`
-        );
+      if (Math.abs(splitRemaining) > 1) {
+        toast.error(`Payment lines don't add up to the total (UGX ${splitRemaining.toLocaleString()} remaining)`);
         return;
       }
-
-      if (finalLines.some((l) => l.method === "CREDIT") && !selectedCustomerId) {
+      if (splitHasCredit && !selectedCustomerId) {
         toast.error("Select a customer for the credit portion of this sale");
         return;
       }
@@ -214,27 +223,18 @@ export default function POS() {
 
     const payload = {
       items: cart.map((item) => ({
-        productId: item.id,
+        productId: item.productId,
         quantity: item.qty,
+        productUnitId: item.productUnitId,
+        productSerialId: item.productSerialId,
       })),
       discount: 0,
-      projectId: selectedProjectId || null,
       clientReferenceId,
       customerId: splitMode
-        ? finalLines.some((l) => l.method === "CREDIT")
-          ? selectedCustomerId
-          : null
-        : paymentMethod === "CREDIT"
-        ? selectedCustomerId
-        : null,
+        ? (splitHasCredit ? selectedCustomerId : null)
+        : (paymentMethod === "CREDIT" ? selectedCustomerId : null),
       ...(splitMode
-        ? {
-            payments: finalLines.map((l) => ({
-              method: l.method,
-              amount: Number(l.amount),
-              reference: l.reference || undefined,
-            })),
-          }
+        ? { payments: splitLines.map((l) => ({ method: l.method, amount: Number(l.amount), reference: l.reference || undefined })) }
         : { paymentMethod }),
     };
 
@@ -245,7 +245,7 @@ export default function POS() {
 
       setLastSale({
         ...res.data,
-        items: cart,
+        items: cart.map((c) => ({ name: `${c.name} (${c.unitLabel})`, qty: c.qty, sellingPrice: c.unitPrice })),
         paymentMethod: displayMethod,
         pending: false,
       });
@@ -253,9 +253,7 @@ export default function POS() {
       setShowReceipt(true);
       setCart([]);
       setSelectedCustomerId("");
-      setSelectedProjectId("");
       setSplitLines([]);
-      setSplitDraft({ method: "CASH", amount: "", reference: "" });
       toast.success(`Sale completed via ${displayMethod}`);
 
       await fetchProducts();
@@ -263,23 +261,35 @@ export default function POS() {
       console.error(err);
 
       if (!err.response) {
-        // Offline – queue the sale
         addToQueue({ clientReferenceId, payload });
 
+        // Optimistic local stock adjustment, in real base-unit terms
         setProducts((prev) =>
           prev.map((p) => {
-            const cartItem = cart.find((c) => c.id === p.id);
-            if (!cartItem) return p;
-            return { ...p, stockQuantity: p.stockQuantity - cartItem.qty };
+            const cartLinesForProduct = cart.filter((c) => c.productId === p.id);
+            if (cartLinesForProduct.length === 0) return p;
+            const baseUnitsUsed = cartLinesForProduct.reduce(
+              (sum, c) => sum + c.qty * (c.conversionFactor || 1),
+              0
+            );
+            return { ...p, stockQuantity: p.stockQuantity - baseUnitsUsed };
           })
         );
+
+        // Serials used in a queued offline sale stay reserved for this
+        // device until sync — see the note at the top of this file.
+        cart.forEach((c) => {
+          if (c.productSerialId) {
+            setReservedSerialIds((prev) => (prev.includes(c.productSerialId) ? prev : [...prev, c.productSerialId]));
+          }
+        });
 
         setLastSale({
           id: clientReferenceId,
           totalAmount: total,
-          subtotal,
-          vatAmount,
-          items: cart,
+          subtotal: total / 1.18,
+          vatAmount: total - total / 1.18,
+          items: cart.map((c) => ({ name: `${c.name} (${c.unitLabel})`, qty: c.qty, sellingPrice: c.unitPrice })),
           paymentMethod: displayMethod,
           pending: true,
           createdAt: new Date().toISOString(),
@@ -288,15 +298,61 @@ export default function POS() {
         setShowReceipt(true);
         setCart([]);
         setSelectedCustomerId("");
-        setSelectedProjectId("");
         setSplitLines([]);
-        setSplitDraft({ method: "CASH", amount: "", reference: "" });
         toast.success("You're offline — sale saved and will sync automatically");
       } else {
         toast.error(err.response?.data?.message || "Checkout failed");
       }
     } finally {
       setCheckoutLoading(false);
+    }
+  };
+
+  /* ---------- Barcode / scan resolution ---------- */
+
+  const handleScan = async (code) => {
+    setShowScanner(false);
+
+    try {
+      const res = await api.get("/products/resolve-scan", { params: { code } });
+      const { type, product, productUnit, serial } = res.data;
+
+      if (type === "SERIAL") {
+        if (reservedSerialIds.includes(serial.id) || cart.some((c) => c.productSerialId === serial.id)) {
+          toast.error("That serial is already in your cart");
+          return;
+        }
+        addSerialLine({
+          cartLineId: crypto.randomUUID(),
+          productId: product.id,
+          name: product.name,
+          unitLabel: product.unitType || "Piece",
+          unitPrice: product.sellingPrice,
+          qty: 1,
+          productUnitId: null,
+          productSerialId: serial.id,
+          serialNumber: serial.serialNumber,
+          conversionFactor: 1,
+        });
+      } else if (type === "UNIT") {
+        const unitPrice = productUnit.sellingPrice ?? product.sellingPrice * productUnit.conversionFactor;
+        addUnitLine({
+          cartLineId: crypto.randomUUID(),
+          productId: product.id,
+          name: product.name,
+          unitLabel: productUnit.unitName,
+          unitPrice,
+          qty: 1,
+          productUnitId: productUnit.id,
+          productSerialId: null,
+          serialNumber: null,
+          conversionFactor: productUnit.conversionFactor,
+        });
+      } else if (type === "BASE") {
+        addSimpleBaseUnit(product);
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Product not found for this code");
     }
   };
 
@@ -336,10 +392,7 @@ export default function POS() {
           )}
 
           <button
-            onClick={() => {
-              logout();
-              navigate("/login");
-            }}
+            onClick={() => { logout(); navigate("/login"); }}
             className="bg-red-600 hover:bg-red-700 px-5 py-2 rounded-lg text-sm flex items-center gap-2"
           >
             <LogOut size={18} /> Logout
@@ -349,14 +402,8 @@ export default function POS() {
 
       {/* Daily Summary Bar */}
       <div className="bg-white border-b px-6 py-3 flex items-center justify-between text-sm">
-        <div className="flex items-center gap-8">
-          <div className="text-slate-500 text-xs">
-            {new Date().toLocaleDateString("en-UG", {
-              weekday: "long",
-              month: "long",
-              day: "numeric",
-            })}
-          </div>
+        <div className="text-slate-500 text-xs">
+          {new Date().toLocaleDateString('en-UG', { weekday: 'long', month: 'long', day: 'numeric' })}
         </div>
       </div>
 
@@ -418,14 +465,20 @@ export default function POS() {
               {filteredProducts.map((product) => (
                 <div
                   key={product.id}
-                  onClick={() => addToCart(product)}
+                  onClick={() => handleProductClick(product)}
                   className="bg-white border border-slate-200 hover:border-blue-500 hover:shadow-xl p-5 rounded-2xl cursor-pointer transition-all active:scale-95"
                 >
-                  <div className="font-semibold text-lg leading-tight mb-2">{product.name}</div>
+                  <div className="font-semibold text-lg leading-tight mb-2 flex items-center gap-2">
+                    {product.name}
+                    {product.isSerialized && <Hash size={14} className="text-blue-500" />}
+                  </div>
                   <div className="text-2xl font-bold text-blue-600">
                     UGX {product.sellingPrice.toLocaleString()}
                   </div>
-                  <div className="text-sm text-slate-500 mt-2">Stock: {product.stockQuantity}</div>
+                  <div className="text-sm text-slate-500 mt-2">
+                    Stock: {product.stockQuantity} {product.unitType || ""}
+                    {product.hasUnits && <span className="text-blue-500 ml-1">· multiple units</span>}
+                  </div>
                 </div>
               ))}
             </div>
@@ -448,36 +501,33 @@ export default function POS() {
               </div>
             ) : (
               cart.map((item) => (
-                <div key={item.id} className="border rounded-2xl p-4">
+                <div key={item.cartLineId} className="border rounded-2xl p-4">
                   <div className="flex justify-between items-start">
                     <div>
                       <p className="font-semibold">{item.name}</p>
-                      <p className="text-sm text-slate-500">UGX {item.sellingPrice}</p>
+                      <p className="text-sm text-slate-500">
+                        {item.unitLabel} — UGX {item.unitPrice.toLocaleString()}
+                      </p>
+                      {item.serialNumber && (
+                        <p className="text-xs text-blue-600 font-mono mt-1">SN: {item.serialNumber}</p>
+                      )}
                     </div>
-                    <button onClick={() => removeFromCart(item.id)} className="text-red-500">
+                    <button onClick={() => removeFromCart(item.cartLineId)} className="text-red-500">
                       <X size={20} />
                     </button>
                   </div>
 
                   <div className="flex items-center justify-between mt-3">
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => updateQuantity(item.id, item.qty - 1)}
-                        className="w-8 h-8 border rounded-lg hover:bg-slate-100"
-                      >
-                        -
-                      </button>
-                      <span className="font-bold w-6 text-center">{item.qty}</span>
-                      <button
-                        onClick={() => updateQuantity(item.id, item.qty + 1)}
-                        className="w-8 h-8 border rounded-lg hover:bg-slate-100"
-                      >
-                        +
-                      </button>
-                    </div>
-                    <p className="font-bold">
-                      UGX {(item.sellingPrice * item.qty).toLocaleString()}
-                    </p>
+                    {item.productSerialId ? (
+                      <span className="text-xs text-slate-400">Quantity fixed at 1 (serialized item)</span>
+                    ) : (
+                      <div className="flex items-center gap-3">
+                        <button onClick={() => updateQuantity(item.cartLineId, item.qty - 1)} className="w-8 h-8 border rounded-lg hover:bg-slate-100">-</button>
+                        <span className="font-bold w-10 text-center">{item.qty}</span>
+                        <button onClick={() => updateQuantity(item.cartLineId, item.qty + 1)} className="w-8 h-8 border rounded-lg hover:bg-slate-100">+</button>
+                      </div>
+                    )}
+                    <p className="font-bold">UGX {(item.unitPrice * item.qty).toLocaleString()}</p>
                   </div>
                 </div>
               ))
@@ -488,12 +538,8 @@ export default function POS() {
           <div className="p-6 border-t bg-slate-50 rounded-b-3xl">
             <div className="mb-6">
               <div className="flex justify-between text-sm text-slate-500">
-                <span>Subtotal</span>
-                <span>UGX {subtotal.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between text-sm text-slate-500">
-                <span>VAT (18%)</span>
-                <span>UGX {vatAmount.toLocaleString()}</span>
+                <span>VAT Included (18%)</span>
+                <span>UGX {(total * 0.18).toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-2xl font-bold mt-2">
                 <span>Total Due</span>
@@ -505,17 +551,13 @@ export default function POS() {
             <div className="flex gap-2 mb-4">
               <button
                 onClick={() => splitMode && toggleSplitMode()}
-                className={`flex-1 py-2 rounded-xl text-sm font-medium ${
-                  !splitMode ? "bg-slate-900 text-white" : "bg-slate-200 text-slate-600"
-                }`}
+                className={`flex-1 py-2 rounded-xl text-sm font-medium ${!splitMode ? "bg-slate-900 text-white" : "bg-slate-200 text-slate-600"}`}
               >
                 Single Payment
               </button>
               <button
                 onClick={() => !splitMode && toggleSplitMode()}
-                className={`flex-1 py-2 rounded-xl text-sm font-medium ${
-                  splitMode ? "bg-slate-900 text-white" : "bg-slate-200 text-slate-600"
-                }`}
+                className={`flex-1 py-2 rounded-xl text-sm font-medium ${splitMode ? "bg-slate-900 text-white" : "bg-slate-200 text-slate-600"}`}
               >
                 Split Payment
               </button>
@@ -525,7 +567,7 @@ export default function POS() {
               <>
                 <div className="mb-6">
                   <p className="text-sm text-slate-500 mb-3">Payment Method</p>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                     {PAYMENT_METHODS.map((method) => (
                       <button
                         key={method}
@@ -536,7 +578,7 @@ export default function POS() {
                             : "bg-slate-100 hover:bg-slate-200"
                         }`}
                       >
-                        {method === "MOBILE_MONEY" ? "Mobile Money" : method}
+                        {method === "MOBILE_MONEY" ? "Mobile Money" : method === "BANK_TRANSFER" ? "Bank Transfer" : method}
                       </button>
                     ))}
                   </div>
@@ -555,28 +597,10 @@ export default function POS() {
                       <option value="">Select customer</option>
                       {customers.map((c) => (
                         <option key={c.id} value={c.id}>
-                          {c.name}
-                          {c.totalCredit > 0 ? ` (owes UGX ${Number(c.totalCredit).toLocaleString()}` : ""}
-                          {c.creditLimit > 0
-                            ? ` / limit UGX ${Number(c.creditLimit).toLocaleString()})`
-                            : c.totalCredit > 0
-                              ? ")"
-                              : ""}
+                          {c.name} {c.totalCredit > 0 ? `(owes UGX ${Number(c.totalCredit).toLocaleString()})` : ""}
                         </option>
                       ))}
                     </select>
-                    {customerProjects.length > 0 && (
-  <select
-    className="w-full p-4 border rounded-2xl mt-3"
-    value={selectedProjectId}
-    onChange={(e) => setSelectedProjectId(e.target.value)}
-  >
-    <option value="">No specific project</option>
-    {customerProjects.map((p) => (
-      <option key={p.id} value={p.id}>{p.name}</option>
-    ))}
-  </select>
-)}
                   </div>
                 )}
               </>
@@ -585,15 +609,10 @@ export default function POS() {
                 {splitLines.length > 0 && (
                   <div className="space-y-2">
                     {splitLines.map((l, i) => (
-                      <div
-                        key={i}
-                        className="flex justify-between items-center bg-white border rounded-xl p-3 text-sm"
-                      >
+                      <div key={i} className="flex justify-between items-center bg-white border rounded-xl p-3 text-sm">
                         <span>{l.method === "MOBILE_MONEY" ? "Mobile Money" : l.method}</span>
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold">
-                            UGX {Number(l.amount).toLocaleString()}
-                          </span>
+                          <span className="font-semibold">UGX {Number(l.amount).toLocaleString()}</span>
                           <button onClick={() => removeSplitLine(i)} className="text-red-500">
                             <Trash2 size={14} />
                           </button>
@@ -610,23 +629,9 @@ export default function POS() {
                     onChange={(e) => setSplitDraft({ ...splitDraft, method: e.target.value })}
                   >
                     {PAYMENT_METHODS.map((m) => (
-                      <option key={m} value={m}>
-                        {m === "MOBILE_MONEY" ? "Mobile Money" : m}
-                      </option>
+                      <option key={m} value={m}>{m === "MOBILE_MONEY" ? "Mobile Money" : m === "BANK_TRANSFER" ? "Bank Transfer" : m}</option>
                     ))}
                   </select>
-                  {customerProjects.length > 0 && (
-  <select
-    className="w-full p-4 border rounded-2xl mt-3"
-    value={selectedProjectId}
-    onChange={(e) => setSelectedProjectId(e.target.value)}
-  >
-    <option value="">No specific project</option>
-    {customerProjects.map((p) => (
-      <option key={p.id} value={p.id}>{p.name}</option>
-    ))}
-  </select>
-)}
                   <input
                     type="number"
                     placeholder="Amount"
@@ -639,53 +644,28 @@ export default function POS() {
                   </button>
                 </div>
 
-                <div
-                  className={`flex justify-between text-sm font-medium px-1 ${
-                    Math.abs(splitRemaining) < 1 ? "text-green-600" : "text-amber-600"
-                  }`}
-                >
+                <div className={`flex justify-between text-sm font-medium px-1 ${Math.abs(splitRemaining) < 1 ? "text-green-600" : "text-amber-600"}`}>
                   <span>Remaining to assign</span>
                   <span>UGX {splitRemaining.toLocaleString()}</span>
                 </div>
 
-                {(splitHasCredit || splitDraft.method === "CREDIT") && (
-  <div>
-    <label className="text-sm text-slate-500 mb-2 flex items-center gap-2">
-      <UserCircle size={16} /> Customer (required for the credit portion)
-    </label>
-    <select
-      className="w-full p-4 border rounded-2xl"
-      value={selectedCustomerId}
-      onChange={(e) => setSelectedCustomerId(e.target.value)}
-    >
-      <option value="">Select customer</option>
-      {customers.map((c) => (
-        <option key={c.id} value={c.id}>
-          {c.name}
-          {c.totalCredit > 0 ? ` (owes UGX ${Number(c.totalCredit).toLocaleString()}` : ""}
-          {c.creditLimit > 0
-            ? ` / limit UGX ${Number(c.creditLimit).toLocaleString()})`
-            : c.totalCredit > 0
-              ? ")"
-              : ""}
-        </option>
-      ))}
-    </select>
-
-    {customerProjects.length > 0 && (
-      <select
-        className="w-full p-4 border rounded-2xl mt-3"
-        value={selectedProjectId}
-        onChange={(e) => setSelectedProjectId(e.target.value)}
-      >
-        <option value="">No specific project</option>
-        {customerProjects.map((p) => (
-          <option key={p.id} value={p.id}>{p.name}</option>
-        ))}
-      </select>
-    )}
-  </div>
-)}
+                {splitHasCredit && (
+                  <div>
+                    <label className="text-sm text-slate-500 mb-2 flex items-center gap-2">
+                      <UserCircle size={16} /> Customer (required for the credit portion)
+                    </label>
+                    <select
+                      className="w-full p-4 border rounded-2xl"
+                      value={selectedCustomerId}
+                      onChange={(e) => setSelectedCustomerId(e.target.value)}
+                    >
+                      <option value="">Select customer</option>
+                      {customers.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
             )}
 
@@ -717,17 +697,25 @@ export default function POS() {
 
       {showScanner && (
         <BarcodeScanner
-          onScan={(barcode) => {
-            const product = products.find((p) => p.barcode === barcode);
-            if (product) {
-              addToCart(product);
-              toast.success(`Added ${product.name}`);
-            } else {
-              toast.error("Product not found for barcode");
-            }
-            setShowScanner(false);
-          }}
+          onScan={handleScan}
           onClose={() => setShowScanner(false)}
+        />
+      )}
+
+      {pickerType === "unit" && pickerProduct && (
+        <UnitPickerModal
+          product={pickerProduct}
+          onClose={() => { setPickerProduct(null); setPickerType(null); }}
+          onAdd={addUnitLine}
+        />
+      )}
+
+      {pickerType === "serial" && pickerProduct && (
+        <SerialPickerModal
+          product={pickerProduct}
+          alreadyInCart={reservedSerialIds}
+          onClose={() => { setPickerProduct(null); setPickerType(null); }}
+          onAdd={addSerialLine}
         />
       )}
     </div>

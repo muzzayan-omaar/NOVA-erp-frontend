@@ -303,29 +303,31 @@ export default function SupplierDetail() {
 
                 <div className="mt-3 space-y-1">
                   {o.items.map((i) => (
-                    <div key={i.id} className="flex justify-between text-sm text-slate-600">
-                      <span>{i.product?.name} × {i.quantityOrdered}</span>
-                      <span>UGX {(i.quantityOrdered * i.unitCost).toLocaleString()}</span>
-                    </div>
-                  ))}
+  <div key={i.id} className="flex justify-between text-sm text-slate-600">
+    <span>{i.product?.name} × {i.quantityOrdered} {i.productUnit?.unitName || i.product?.unitType || ""}</span>
+    <span>UGX {(i.quantityOrdered * i.unitCost).toLocaleString()}</span>
+  </div>
+))}
                 </div>
 
                 {receivingOrderId === o.id ? (
                   <div className="mt-4 border-t pt-4 space-y-3">
                     <p className="text-sm font-semibold">Confirm quantities received</p>
                     {o.items.map((i) => (
-                      <div key={i.id} className="flex items-center gap-3">
-                        <span className="text-sm flex-1">{i.product?.name}</span>
-                        <input
-                          type="number"
-                          className="w-24 p-2 border rounded-lg text-sm"
-                          value={receiveQuantities[i.id] ?? i.quantityOrdered}
-                          onChange={(e) =>
-                            setReceiveQuantities({ ...receiveQuantities, [i.id]: e.target.value })
-                          }
-                        />
-                      </div>
-                    ))}
+  <div key={i.id} className="flex items-center gap-3">
+    <span className="text-sm flex-1">
+      {i.product?.name} <span className="text-slate-400">({i.productUnit?.unitName || i.product?.unitType || "base unit"})</span>
+    </span>
+    <input
+      type="number"
+      className="w-24 p-2 border rounded-lg text-sm"
+      value={receiveQuantities[i.id] ?? i.quantityOrdered}
+      onChange={(e) =>
+        setReceiveQuantities({ ...receiveQuantities, [i.id]: e.target.value })
+      }
+    />
+  </div>
+))}
                     <div className="grid grid-cols-2 gap-3">
   <div>
     <label className="text-xs text-slate-500">Freight / Transport Cost (optional)</label>

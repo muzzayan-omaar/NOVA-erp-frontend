@@ -92,13 +92,13 @@ export default function PaymentsModule() {
       const sale = res.data;
 
       setReceiptSale({
-        ...sale,
-        items: (sale.saleItems || []).map((i) => ({
-          name: i.product?.name || "Unknown item",
-          qty: i.quantity,
-          sellingPrice: i.unitPrice,
-        })),
-      });
+  ...sale,
+  items: sale.saleItems.map((i) => ({
+    name: `${i.product?.name || "Unknown item"} (${i.productUnit?.unitName || i.product?.unitType || "Piece"})`,
+    qty: i.quantity,
+    sellingPrice: i.unitPrice,
+  })),
+});
       setShowReceipt(true);
     } catch (err) {
       toast.error("Failed to load receipt");

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../../../services/api";
 import toast from "react-hot-toast";
-import { X, ArrowRightLeft } from "lucide-react";
+import { X, ArrowRightLeft, Hash } from "lucide-react";
 
 export default function TransferStockModal({ products, onClose, onSuccess }) {
   const [stores, setStores] = useState([]);
@@ -16,6 +16,10 @@ export default function TransferStockModal({ products, onClose, onSuccess }) {
     reason: "",
   });
 
+  const [serials, setSerials] = useState([]);
+  const [selectedSerialIds, setSelectedSerialIds] = useState([]);
+  const [loadingSerials, setLoadingSerials] = useState(false);
+
   useEffect(() => {
     api
       .get("/stores/options")
@@ -25,6 +29,29 @@ export default function TransferStockModal({ products, onClose, onSuccess }) {
   }, []);
 
   const selectedProduct = products.find((p) => p.id === form.productId);
+  const isSerialized = selectedProduct?.isSerialized;
+
+  useEffect(() => {
+    if (isSerialized && form.productId) {
+      setLoadingSerials(true);
+      setSelectedSerialIds([]);
+      api
+        .get(`/products/${form.productId}/serials`, { params: { status: "IN_STOCK" } })
+        .then((res) => setSerials(res.data))
+        .catch(() => toast.error("Failed to load serial numbers"))
+        .finally(() => setLoadingSerials(false));
+    } else {
+      setSerials([]);
+      setSelectedSerialIds([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.productId, isSerialized]);
+
+  const toggleSerial = (id) => {
+    setSelectedSerialIds((prev) =>
+      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
+    );
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -33,22 +60,37 @@ export default function TransferStockModal({ products, onClose, onSuccess }) {
       toast.error("Select a product and destination store");
       return;
     }
-    if (form.mode === "CLONE" && (!form.quantity || Number(form.quantity) <= 0)) {
-      toast.error("Enter a quantity to transfer");
-      return;
-    }
 
     try {
       setSubmitting(true);
-      await api.post("/inventory/transfer", {
-        productId: form.productId,
-        targetStoreId: form.targetStoreId,
-        mode: form.mode,
-        quantity: form.mode === "CLONE" ? Number(form.quantity) : undefined,
-        reason: form.reason,
-      });
 
-      toast.success("Dispatched — the destination store needs to confirm receipt");
+      if (isSerialized) {
+        if (selectedSerialIds.length === 0) {
+          toast.error("Select at least one serial number to send");
+          return;
+        }
+        await api.post("/inventory/transfer-serials", {
+          productId: form.productId,
+          targetStoreId: form.targetStoreId,
+          serialIds: selectedSerialIds,
+          reason: form.reason,
+        });
+        toast.success(`Dispatched ${selectedSerialIds.length} unit(s) — awaiting receipt`);
+      } else {
+        if (form.mode === "CLONE" && (!form.quantity || Number(form.quantity) <= 0)) {
+          toast.error("Enter a quantity to transfer");
+          return;
+        }
+        await api.post("/inventory/transfer", {
+          productId: form.productId,
+          targetStoreId: form.targetStoreId,
+          mode: form.mode,
+          quantity: form.mode === "CLONE" ? Number(form.quantity) : undefined,
+          reason: form.reason,
+        });
+        toast.success("Dispatched — the destination store needs to confirm receipt");
+      }
+
       onSuccess();
       onClose();
     } catch (err) {
@@ -60,7 +102,7 @@ export default function TransferStockModal({ products, onClose, onSuccess }) {
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white p-8 rounded-3xl w-full max-w-md space-y-5">
+      <div className="bg-white p-8 rounded-3xl w-full max-w-md space-y-5 max-h-[85vh] overflow-y-auto">
         <div className="flex justify-between items-center">
           <h2 className="text-xl font-bold flex items-center gap-2">
             <ArrowRightLeft size={20} /> Dispatch Stock Transfer
@@ -81,7 +123,7 @@ export default function TransferStockModal({ products, onClose, onSuccess }) {
               <option value="">Select product</option>
               {products.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name} — {p.stockQuantity} in stock
+                  {p.name} — {p.stockQuantity} in stock{p.isSerialized ? " (serialized)" : ""}
                 </option>
               ))}
             </select>
@@ -104,57 +146,84 @@ export default function TransferStockModal({ products, onClose, onSuccess }) {
                 </option>
               ))}
             </select>
-            {stores.length === 0 && !loadingStores && (
-              <p className="text-xs text-slate-400 mt-1">
-                No other stores yet — nothing to transfer to.
-              </p>
-            )}
           </div>
 
-          <div>
-            <label className="text-sm font-medium text-slate-700">Transfer type</label>
-            <div className="grid grid-cols-2 gap-3 mt-1">
-              <button
-                type="button"
-                onClick={() => setForm({ ...form, mode: "CLONE" })}
-                className={`p-3 rounded-xl border text-sm text-left ${
-                  form.mode === "CLONE" ? "border-blue-600 bg-blue-50" : "border-slate-200"
-                }`}
-              >
-                <p className="font-semibold">Send some, keep some</p>
-                <p className="text-xs text-slate-500 mt-1">Both branches stock it independently</p>
-              </button>
-              <button
-                type="button"
-                onClick={() => setForm({ ...form, mode: "RELOCATE" })}
-                className={`p-3 rounded-xl border text-sm text-left ${
-                  form.mode === "RELOCATE" ? "border-blue-600 bg-blue-50" : "border-slate-200"
-                }`}
-              >
-                <p className="font-semibold">Move it all</p>
-                <p className="text-xs text-slate-500 mt-1">Entire product hands over to that branch</p>
-              </button>
-            </div>
-          </div>
-
-          {form.mode === "CLONE" && (
+          {isSerialized ? (
             <div>
-              <label className="text-sm font-medium text-slate-700">Quantity to send</label>
-              <input
-                type="number"
-                className="w-full p-4 border rounded-xl mt-1"
-                placeholder={selectedProduct ? `Max ${selectedProduct.stockQuantity}` : "Quantity"}
-                value={form.quantity}
-                onChange={(e) => setForm({ ...form, quantity: e.target.value })}
-              />
+              <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                <Hash size={16} /> Select which units to send
+              </label>
+              {loadingSerials ? (
+                <p className="text-sm text-slate-400 mt-2">Loading serial numbers...</p>
+              ) : serials.length === 0 ? (
+                <p className="text-sm text-slate-400 mt-2">No available units in stock.</p>
+              ) : (
+                <div className="mt-2 space-y-2 max-h-48 overflow-y-auto border rounded-xl p-3">
+                  {serials.map((s) => (
+                    <label key={s.id} className="flex items-center gap-3 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={selectedSerialIds.includes(s.id)}
+                        onChange={() => toggleSerial(s.id)}
+                      />
+                      <span className="font-mono">{s.serialNumber}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+              <p className="text-xs text-slate-400 mt-2">
+                {selectedSerialIds.length} selected — each is tracked individually until the
+                destination confirms it arrived.
+              </p>
             </div>
-          )}
+          ) : (
+            <>
+              <div>
+                <label className="text-sm font-medium text-slate-700">Transfer type</label>
+                <div className="grid grid-cols-2 gap-3 mt-1">
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, mode: "CLONE" })}
+                    className={`p-3 rounded-xl border text-sm text-left ${
+                      form.mode === "CLONE" ? "border-blue-600 bg-blue-50" : "border-slate-200"
+                    }`}
+                  >
+                    <p className="font-semibold">Send some, keep some</p>
+                    <p className="text-xs text-slate-500 mt-1">Both branches stock it independently</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, mode: "RELOCATE" })}
+                    className={`p-3 rounded-xl border text-sm text-left ${
+                      form.mode === "RELOCATE" ? "border-blue-600 bg-blue-50" : "border-slate-200"
+                    }`}
+                  >
+                    <p className="font-semibold">Move it all</p>
+                    <p className="text-xs text-slate-500 mt-1">Entire product hands over to that branch</p>
+                  </button>
+                </div>
+              </div>
 
-          {form.mode === "RELOCATE" && selectedProduct && (
-            <div className="bg-amber-50 text-amber-700 text-sm rounded-xl p-3">
-              This moves all {selectedProduct.stockQuantity} units — the product will
-              no longer appear in this store's inventory afterward.
-            </div>
+              {form.mode === "CLONE" && (
+                <div>
+                  <label className="text-sm font-medium text-slate-700">Quantity to send</label>
+                  <input
+                    type="number"
+                    className="w-full p-4 border rounded-xl mt-1"
+                    placeholder={selectedProduct ? `Max ${selectedProduct.stockQuantity}` : "Quantity"}
+                    value={form.quantity}
+                    onChange={(e) => setForm({ ...form, quantity: e.target.value })}
+                  />
+                </div>
+              )}
+
+              {form.mode === "RELOCATE" && selectedProduct && (
+                <div className="bg-amber-50 text-amber-700 text-sm rounded-xl p-3">
+                  This moves all {selectedProduct.stockQuantity} units — the product will
+                  no longer appear in this store's inventory afterward.
+                </div>
+              )}
+            </>
           )}
 
           <div>
@@ -172,7 +241,7 @@ export default function TransferStockModal({ products, onClose, onSuccess }) {
             disabled={submitting}
             className="w-full bg-blue-600 text-white py-4 rounded-xl font-semibold disabled:opacity-50"
           >
-            {submitting ? "Transferring..." : "Dispatch Transfer"}
+            {submitting ? "Dispatching..." : "Dispatch Transfer"}
           </button>
         </form>
       </div>

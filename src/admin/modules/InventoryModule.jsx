@@ -32,7 +32,7 @@ export default function InventoryModule() {
 
   const [movements, setMovements] = useState([]);
   const [products, setProducts] = useState([]);
-
+  const [receiveSerialChecks, setReceiveSerialChecks] = useState({});
   const [loading, setLoading] = useState(true);
 
   const [showAdjust, setShowAdjust] = useState(false);
@@ -161,6 +161,31 @@ export default function InventoryModule() {
   const startReceiving = (transit) => {
   setReceivingTransitId(transit.id);
   setReceiveQty(String(transit.quantitySent));
+  if (transit.mode === "SERIAL") {
+    const initial = {};
+    transit.serials.forEach((s) => { initial[s.id] = true; });
+    setReceiveSerialChecks(initial);
+  }
+};
+
+const confirmReceiveSerialTransit = async (transitId) => {
+  try {
+    const receivedSerialIds = Object.entries(receiveSerialChecks)
+      .filter(([, checked]) => checked)
+      .map(([id]) => id);
+
+    const res = await api.post(`/inventory/transits/${transitId}/receive-serials`, { receivedSerialIds });
+
+    if (res.data.lostValue > 0) {
+      toast.error(`Received with missing units worth UGX ${res.data.lostValue.toLocaleString()} — flagged for review`);
+    } else {
+      toast.success("All units received");
+    }
+    setReceivingTransitId(null);
+    fetchInventory();
+  } catch (err) {
+    toast.error(err?.response?.data?.message || "Failed to confirm receipt");
+  }
 };
 
 const confirmReceiveTransit = async (transitId) => {
@@ -243,37 +268,80 @@ const confirmReceiveTransit = async (transitId) => {
               </div>
 
               {receivingTransitId === t.id ? (
-                <div className="mt-4 border-t pt-4 flex items-center gap-3">
-                  <input
-                    type="number"
-                    className="p-3 border rounded-xl flex-1"
-                    value={receiveQty}
-                    onChange={(e) => setReceiveQty(e.target.value)}
-                    placeholder="Quantity actually received"
-                  />
-                  <button
-                    onClick={() => confirmReceiveTransit(t.id)}
-                    className="bg-green-600 text-white px-5 py-3 rounded-xl font-semibold"
-                  >
-                    Confirm Receipt
-                  </button>
-                  <button
-                    onClick={() => setReceivingTransitId(null)}
-                    className="bg-slate-200 px-5 py-3 rounded-xl font-semibold"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              ) : (
-                <div className="mt-4 border-t pt-4 flex justify-end">
-                  <button
-                    onClick={() => startReceiving(t)}
-                    className="flex items-center gap-2 text-sm font-medium text-green-600 px-4 py-2 rounded-xl border border-green-200 hover:bg-green-50"
-                  >
-                    <PackageCheck size={16} /> Receive This Transfer
-                  </button>
-                </div>
-              )}
+  <div className="mt-4 border-t pt-4 space-y-3">
+    {t.mode === "SERIAL" ? (
+      <>
+        <p className="text-sm font-semibold flex items-center gap-2">
+          Confirm which units actually arrived
+        </p>
+        <div className="space-y-2 max-h-48 overflow-y-auto border rounded-xl p-3">
+          {(t.serials || []).map((s) => (
+            <label key={s.id} className="flex items-center gap-3 text-sm">
+              <input
+                type="checkbox"
+                checked={receiveSerialChecks[s.id] ?? true}
+                onChange={(e) =>
+                  setReceiveSerialChecks({
+                    ...receiveSerialChecks,
+                    [s.id]: e.target.checked,
+                  })
+                }
+              />
+              <span className="font-mono">{s.serialNumber}</span>
+            </label>
+          ))}
+        </div>
+        <div className="flex gap-3">
+          <button
+            onClick={() => confirmReceiveSerialTransit(t.id)}
+            className="flex-1 bg-green-600 text-white py-3 rounded-xl font-semibold"
+          >
+            Confirm Receipt
+          </button>
+          <button
+            onClick={() => setReceivingTransitId(null)}
+            className="flex-1 bg-slate-200 py-3 rounded-xl font-semibold"
+          >
+            Cancel
+          </button>
+        </div>
+      </>
+    ) : (
+      <>
+        <input
+          type="number"
+          className="w-full p-3 border rounded-xl"
+          value={receiveQty}
+          onChange={(e) => setReceiveQty(e.target.value)}
+          placeholder="Quantity actually received"
+        />
+        <div className="flex gap-3">
+          <button
+            onClick={() => confirmReceiveTransit(t.id)}
+            className="flex-1 bg-green-600 text-white py-3 rounded-xl font-semibold"
+          >
+            Confirm Receipt
+          </button>
+          <button
+            onClick={() => setReceivingTransitId(null)}
+            className="flex-1 bg-slate-200 py-3 rounded-xl font-semibold"
+          >
+            Cancel
+          </button>
+        </div>
+      </>
+    )}
+  </div>
+) : (
+  <div className="mt-4 border-t pt-4 flex justify-end">
+    <button
+      onClick={() => startReceiving(t)}
+      className="flex items-center gap-2 text-sm font-medium text-green-600 px-4 py-2 rounded-xl border border-green-200 hover:bg-green-50"
+    >
+      <PackageCheck size={16} /> Receive This Transfer
+    </button>
+  </div>
+)}
             </div>
           );
         })}

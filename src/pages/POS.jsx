@@ -366,6 +366,7 @@ export default function POS() {
     <div className="h-screen bg-slate-100 flex flex-col overflow-hidden">
       {/* Top Bar */}
       <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+        
         <div className="flex items-center gap-4">
           <div className="bg-blue-600 p-3 rounded-xl">
             <ShoppingCart size={28} />

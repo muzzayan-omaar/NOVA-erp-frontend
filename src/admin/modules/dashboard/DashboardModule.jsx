@@ -42,6 +42,8 @@ import TopProductsCard from "./components/TopProductsCard";
 import FinanceSummaryCard from "./components/FinanceSummaryCard";
 import InventoryInsightsCard from "./components/InventoryInsightsCard";
 
+
+
 export default function DashboardModule() {
 
   const { user } = useAuthStore();

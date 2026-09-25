@@ -49,10 +49,10 @@ import QuotesModule from "./admin/modules/QuotesModule";
 import QuoteDetail from "./admin/modules/quotes/QuoteDetail";
 import BankReconciliationModule from "./admin/modules/BankReconciliationModule";
 
-
 import AuthGate from "./guards/AuthGate";
 import useAuthStore from "./store/useAuthStore";
 import ProtectedRoute from "./guards/ProtectedRoute";
+import { ConfirmProvider } from "./components/ui/ConfirmProvider";
 
 export default function App() {
   const hydrate = useAuthStore((s) => s.hydrate);
@@ -62,281 +62,280 @@ export default function App() {
   }, []);
 
   return (
-    <Routes>
-      {/* Public */}
-      <Route path="/login" element={<Login />} />
-      <Route path="/platform/login" element={<PlatformLogin />} />
-      <Route path="/terms" element={<TermsPage />} />
-      <Route path="/privacy" element={<PrivacyPage />} />
+    <ConfirmProvider>
+      <Routes>
+        {/* Public */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/platform/login" element={<PlatformLogin />} />
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
 
-      {/* POS */}
-      <Route
-        path="/"
-        element={
-          <AuthGate>
-            <POS />
-          </AuthGate>
-        }
-      />
-              <Route
-  path="/change-password"
-  element={
-    <AuthGate>
-      <ChangePasswordScreen />
-    </AuthGate>
-  }
-/>
-
-      {/* Admin Area */}
-      <Route
-        path="/admin"
-        element={
-          <AuthGate>
-            <AdminLayout />
-          </AuthGate>
-        }
-      >
+        {/* POS */}
         <Route
-          index
+          path="/"
           element={
-            <ProtectedRoute permission="dashboard">
-              <DashboardModule />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="billing"
-          element={
-            <ProtectedRoute permission="billing">
-              <BillingModule />
-            </ProtectedRoute>
+            <AuthGate>
+              <POS />
+            </AuthGate>
           }
         />
         <Route
-  path="customers/:id"
-  element={
-    <ProtectedRoute permission="customers">
-      <CustomerDetail />
-    </ProtectedRoute>
-  }
-/>
-
-
-        
-  <Route
-  path="support"
-  element={
-    <ProtectedRoute permission="support">
-      <SupportModule/>
-    </ProtectedRoute>
-  }
-/>
-<Route
-  path="support/:id"
-  element={
-    <ProtectedRoute permission="support">
-      <SupportThreadDetail/>
-    </ProtectedRoute>
-  }
-/>
-
-        <Route
-          path="stores"
+          path="/change-password"
           element={
-            <ProtectedRoute permission="stores">
-              <StoresModule />
-            </ProtectedRoute>
+            <AuthGate>
+              <ChangePasswordScreen />
+            </AuthGate>
           }
         />
 
+        {/* Admin Area */}
         <Route
-          path="stock-count"
+          path="/admin"
           element={
-            <ProtectedRoute permission="inventory">
-              <StockCountModule />
-            </ProtectedRoute>
+            <AuthGate>
+              <AdminLayout />
+            </AuthGate>
           }
-        />
+        >
+          <Route
+            index
+            element={
+              <ProtectedRoute permission="dashboard">
+                <DashboardModule />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="billing"
+            element={
+              <ProtectedRoute permission="billing">
+                <BillingModule />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="customers/:id"
+            element={
+              <ProtectedRoute permission="customers">
+                <CustomerDetail />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="support"
+            element={
+              <ProtectedRoute permission="support">
+                <SupportModule />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="support/:id"
+            element={
+              <ProtectedRoute permission="support">
+                <SupportThreadDetail />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="stores"
+            element={
+              <ProtectedRoute permission="stores">
+                <StoresModule />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="stock-count"
+            element={
+              <ProtectedRoute permission="inventory">
+                <StockCountModule />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="stock-count/pending"
+            element={
+              <ProtectedRoute permission="audit">
+                <PendingStockCountReviews />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="stock-count/:id"
+            element={
+              <ProtectedRoute permission="inventory">
+                <StockCountDetail />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="pending-requests"
+            element={
+              <ProtectedRoute permission="audit">
+                <PendingRequestsModule />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="audit"
+            element={
+              <ProtectedRoute permission="audit">
+                <AuditModule />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="products"
+            element={
+              <ProtectedRoute permission="products">
+                <ProductsModule />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="inventory"
+            element={
+              <ProtectedRoute permission="inventory">
+                <InventoryModule />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="sales"
+            element={
+              <ProtectedRoute permission="sales">
+                <SalesModule />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="quotes"
+            element={
+              <ProtectedRoute permission="sales">
+                <QuotesModule />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="quotes/:id"
+            element={
+              <ProtectedRoute permission="sales">
+                <QuoteDetail />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="payments"
+            element={
+              <ProtectedRoute permission="payments">
+                <PaymentsModule />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="users"
+            element={
+              <ProtectedRoute permission="users">
+                <UsersModule />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="customers"
+            element={
+              <ProtectedRoute permission="customers">
+                <CustomersModule />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="expenses"
+            element={
+              <ProtectedRoute permission="expenses">
+                <ExpensesModule />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="suppliers"
+            element={
+              <ProtectedRoute permission="suppliers">
+                <SuppliersModule />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="suppliers/:id"
+            element={
+              <ProtectedRoute permission="suppliers">
+                <SupplierDetail />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="payroll"
+            element={
+              <ProtectedRoute permission="payroll">
+                <PayrollModule />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="reconciliation"
+            element={
+              <ProtectedRoute permission="audit">
+                <BankReconciliationModule />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="reports"
+            element={
+              <ProtectedRoute permission="reports">
+                <ReportsModule />
+              </ProtectedRoute>
+            }
+          />
+        </Route>
+
+        {/* Platform Area (sibling of admin, not nested) */}
         <Route
-  path="stock-count/pending"
-  element={
-    <ProtectedRoute permission="audit">
-      <PendingStockCountReviews />
-    </ProtectedRoute>
-  }
-/>
-        <Route
-          path="stock-count/:id"
+          path="/platform"
           element={
-            <ProtectedRoute permission="inventory">
-              <StockCountDetail />
-            </ProtectedRoute>
+            <PlatformAuthGate>
+              <PlatformLayout />
+            </PlatformAuthGate>
           }
-        />
-
-        <Route
-          path="pending-requests"
-          element={
-            <ProtectedRoute permission="audit">
-              <PendingRequestsModule />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="audit"
-          element={
-            <ProtectedRoute permission="audit">
-              <AuditModule />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="products"
-          element={
-            <ProtectedRoute permission="products">
-              <ProductsModule />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="inventory"
-          element={
-            <ProtectedRoute permission="inventory">
-              <InventoryModule />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="sales"
-          element={
-            <ProtectedRoute permission="sales">
-              <SalesModule />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-  path="quotes"
-  element={
-    <ProtectedRoute permission="sales">
-      <QuotesModule />
-    </ProtectedRoute>
-  }
-/>
-<Route
-  path="quotes/:id"
-  element={
-    <ProtectedRoute permission="sales">
-      <QuoteDetail />
-    </ProtectedRoute>
-  }
-/>
-
-        <Route
-          path="payments"
-          element={
-            <ProtectedRoute permission="payments">
-              <PaymentsModule />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="users"
-          element={
-            <ProtectedRoute permission="users">
-              <UsersModule />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="customers"
-          element={
-            <ProtectedRoute permission="customers">
-              <CustomersModule />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="expenses"
-          element={
-            <ProtectedRoute permission="expenses">
-              <ExpensesModule />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="suppliers"
-          element={
-            <ProtectedRoute permission="suppliers">
-              <SuppliersModule />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-  path="suppliers/:id"
-  element={
-    <ProtectedRoute permission="suppliers">
-      <SupplierDetail />
-    </ProtectedRoute>
-  }
-/>
-
-        <Route
-          path="payroll"
-          element={
-            <ProtectedRoute permission="payroll">
-              <PayrollModule />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-  path="reconciliation"
-  element={
-    <ProtectedRoute permission="audit">
-      <BankReconciliationModule />
-    </ProtectedRoute>
-  }
-/>
-
-        <Route
-          path="reports"
-          element={
-            <ProtectedRoute permission="reports">
-              <ReportsModule />
-            </ProtectedRoute>
-          }
-        />
-      </Route>
-
-      {/* Platform Area (sibling of admin, not nested) */}
-      <Route
-        path="/platform"
-        element={
-          <PlatformAuthGate>
-            <PlatformLayout />
-          </PlatformAuthGate>
-        }
-      >
-        <Route path="payments" element={<PlatformPaymentsPage />} />
-        <Route path="companies" element={<CompaniesListPage />} />
-        <Route path="companies/:id" element={<CompanyDetailPage />} />
-        <Route path="analytics" element={<PlatformAnalyticsPage />} />
-        <Route path="catalog" element={<PlatformCatalogPage />} />
-        <Route path="broadcast" element={<PlatformBroadcastPage />} />
-        <Route path="audit-log" element={<PlatformAuditLogPage />} />
-        <Route path="support" element={<PlatformSupportInboxPage />} />
-        <Route path="support/:id" element={<PlatformSupportThreadDetailPage />} />
-        <Route path="onboard" element={<PlatformOnboardingWizard />} />
-
-      </Route>
-    </Routes>
+        >
+          <Route path="payments" element={<PlatformPaymentsPage />} />
+          <Route path="companies" element={<CompaniesListPage />} />
+          <Route path="companies/:id" element={<CompanyDetailPage />} />
+          <Route path="analytics" element={<PlatformAnalyticsPage />} />
+          <Route path="catalog" element={<PlatformCatalogPage />} />
+          <Route path="broadcast" element={<PlatformBroadcastPage />} />
+          <Route path="audit-log" element={<PlatformAuditLogPage />} />
+          <Route path="support" element={<PlatformSupportInboxPage />} />
+          <Route path="support/:id" element={<PlatformSupportThreadDetailPage />} />
+          <Route path="onboard" element={<PlatformOnboardingWizard />} />
+        </Route>
+      </Routes>
+    </ConfirmProvider>
   );
 }

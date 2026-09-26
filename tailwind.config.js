@@ -8,6 +8,19 @@ export default {
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
       },
+      keyframes: {
+  wiggle: {
+    '0%, 100%': { transform: 'rotate(0deg)' },
+    '75%': { transform: 'rotate(0deg)' },
+    '80%': { transform: 'rotate(12deg)' },
+    '85%': { transform: 'rotate(-10deg)' },
+    '90%': { transform: 'rotate(6deg)' },
+    '95%': { transform: 'rotate(0deg)' },
+  },
+},
+animation: {
+  wiggle: 'wiggle 2.5s ease-in-out infinite',
+},
       colors: {
   nova: {
     950: '#0A1628',

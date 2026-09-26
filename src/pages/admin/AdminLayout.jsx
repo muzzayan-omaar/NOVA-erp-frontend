@@ -25,17 +25,19 @@ import {
 import useAuthStore from "../../store/useAuthStore";
 import toast from "react-hot-toast";
 import { hasPermission } from "../../utils/hasPermission";
+import { useConfirm } from "../../components/ui/ConfirmProvider";
 import StoreSwitcher from "../../components/StoreSwitcher";
 import NotificationBell from "../../admin/modules/dashboard/components/NotificationBell";
 import NotificationDrawer from "../../admin/modules/dashboard/components/NotificationDrawer";
 import SubscriptionExpiredScreen from "../../admin/modules/billing/SubscriptionExpiredScreen";
 
-import logo from "../../assets/logo.png";
+import logo from "../../assets/favicon.png";
 
 export default function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuthStore();
+  const { confirm } = useConfirm();
 
   const [subStatus, setSubStatus] = useState(null);
   const [subLoading, setSubLoading] = useState(true);
@@ -47,7 +49,6 @@ export default function AdminLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [openGroup, setOpenGroup] = useState("Overview");
 
-  // ── Subscription status ──────────────────────────────────────
   const fetchSubStatus = async () => {
     try {
       const res = await api.get("/subscription/status");
@@ -63,7 +64,6 @@ export default function AdminLayout() {
     fetchSubStatus();
   }, []);
 
-  // ── Entitlements (plan feature access) ──────────────────────
   useEffect(() => {
     api
       .get("/catalog/my-entitlements")
@@ -71,7 +71,6 @@ export default function AdminLayout() {
       .catch(() => {});
   }, []);
 
-  // ── Notifications ────────────────────────────────────────────
   const fetchNotifications = async () => {
     try {
       const res = await api.get("/notifications");
@@ -87,7 +86,6 @@ export default function AdminLayout() {
     return () => clearInterval(interval);
   }, []);
 
-  // ── Stores ───────────────────────────────────────────────────
   useEffect(() => {
     const fetchStores = async () => {
       try {
@@ -106,9 +104,9 @@ export default function AdminLayout() {
       }
     };
     fetchStores();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Auto-open the group that contains the current page
   useEffect(() => {
     const currentPath = location.pathname;
     for (const group of menuGroups) {
@@ -117,6 +115,7 @@ export default function AdminLayout() {
         break;
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname]);
 
   const handleStoreSwitch = async (e) => {
@@ -129,7 +128,12 @@ export default function AdminLayout() {
       const res = await api.post("/stores/switch", { storeId: selectedStoreId });
       const updatedUser = res.data.user;
 
-      useAuthStore.getState().setAuth(updatedUser, localStorage.getItem("token"));
+      // The access token itself doesn't change when switching stores —
+      // only the user's activeStoreId does. Reusing the real current
+      // token from the store (not localStorage, which this app never
+      // writes to) is what keeps the session valid here.
+      const { token } = useAuthStore.getState();
+      useAuthStore.getState().setAuth(updatedUser, token);
       setCurrentStore(selected);
       toast.success(`Switched to ${selected.name}`);
     } catch (err) {
@@ -140,154 +144,91 @@ export default function AdminLayout() {
     }
   };
 
+  const handleLogout = async () => {
+    const ok = await confirm({
+      title: "Log out of Nova ERP?",
+      message: "You'll need to sign in again to continue.",
+      confirmText: "Log Out",
+      cancelText: "Stay Signed In",
+      variant: "danger",
+    });
+    if (!ok) return;
+
+    logout();
+    navigate("/login");
+  };
+
+  const handleEndInvestigation = async () => {
+    const ok = await confirm({
+      title: "End this investigation session?",
+      message: "You'll be signed out of the impersonated account immediately.",
+      confirmText: "End Session",
+      cancelText: "Cancel",
+      variant: "danger",
+    });
+    if (!ok) return;
+
+    logout();
+    window.close();
+    navigate("/platform/login");
+  };
+
   const menuGroups = [
     {
       title: "Overview",
-      items: [
-        {
-          title: "Dashboard",
-          icon: LayoutDashboard,
-          path: "/admin",
-          permission: "dashboard",
-        },
-      ],
+      items: [{ title: "Dashboard", icon: LayoutDashboard, path: "/admin", permission: "dashboard" }],
     },
     {
       title: "Business",
       items: [
-        {
-          title: "Stores",
-          icon: Building2,
-          path: "/admin/stores",
-          permission: "stores",
-        },
-        {
-          title: "Users",
-          icon: UserCog,
-          path: "/admin/users",
-          permission: "users",
-        },
-        {
-          title: "Payroll",
-          icon: Receipt,
-          path: "/admin/payroll",
-          permission: "payroll",
-        },
+        { title: "Stores", icon: Building2, path: "/admin/stores", permission: "stores" },
+        { title: "Users", icon: UserCog, path: "/admin/users", permission: "users" },
+        { title: "Payroll", icon: Receipt, path: "/admin/payroll", permission: "payroll" },
       ],
     },
     {
       title: "Inventory",
       items: [
-        {
-          title: "Products",
-          icon: Package,
-          path: "/admin/products",
-          permission: "products",
-        },
-        {
-          title: "Inventory",
-          icon: Boxes,
-          path: "/admin/inventory",
-          permission: "inventory",
-        },
-        {
-          title: "Stock Count",
-          icon: ClipboardList,
-          path: "/admin/stock-count",
-          permission: "inventory",
-        },
-        {
-          title: "Suppliers",
-          icon: Truck,
-          path: "/admin/suppliers",
-          permission: "suppliers",
-        },
+        { title: "Products", icon: Package, path: "/admin/products", permission: "products" },
+        { title: "Inventory", icon: Boxes, path: "/admin/inventory", permission: "inventory" },
+        { title: "Stock Count", icon: ClipboardList, path: "/admin/stock-count", permission: "inventory" },
+        { title: "Suppliers", icon: Truck, path: "/admin/suppliers", permission: "suppliers" },
       ],
     },
     {
       title: "Sales",
       items: [
-        {
-          title: "Sales",
-          icon: ShoppingCart,
-          path: "/admin/sales",
-          permission: "sales",
-        },
+        { title: "Sales", icon: ShoppingCart, path: "/admin/sales", permission: "sales" },
         { title: "Quotations", icon: FileText, path: "/admin/quotes", permission: "sales" },
-        {
-          title: "Customers",
-          icon: Users,
-          path: "/admin/customers",
-          permission: "customers",
-        },
-        {
-          title: "Payments",
-          icon: CreditCard,
-          path: "/admin/payments",
-          permission: "payments",
-        },
+        { title: "Customers", icon: Users, path: "/admin/customers", permission: "customers" },
+        { title: "Payments", icon: CreditCard, path: "/admin/payments", permission: "payments" },
       ],
     },
     {
       title: "Finance",
       items: [
-        {
-          title: "Expenses",
-          icon: DollarSign,
-          path: "/admin/expenses",
-          permission: "expenses",
-        },
-        {
-          title: "Billing",
-          icon: CreditCard,
-          path: "/admin/billing",
-          permission: "billing",
-        },
-        {
-          title: "Reports",
-          icon: FileText,
-          path: "/admin/reports",
-          permission: "reports",
-        },
+        { title: "Expenses", icon: DollarSign, path: "/admin/expenses", permission: "expenses" },
+        { title: "Billing", icon: CreditCard, path: "/admin/billing", permission: "billing" },
+        { title: "Reports", icon: FileText, path: "/admin/reports", permission: "reports" },
       ],
     },
     {
       title: "Oversight",
       items: [
-        {
-          title: "Pending Requests",
-          icon: Inbox,
-          path: "/admin/pending-requests",
-          permission: "audit",
-        },
+        { title: "Pending Requests", icon: Inbox, path: "/admin/pending-requests", permission: "audit" },
         { title: "Bank Reconciliation", icon: Landmark, path: "/admin/reconciliation", permission: "audit" },
-        {
-          title: "Audit Log",
-          icon: ShieldAlert,
-          path: "/admin/audit",
-          permission: "audit",
-        },
+        { title: "Audit Log", icon: ShieldAlert, path: "/admin/audit", permission: "audit" },
         { title: "Pending Stock Reviews", icon: Inbox, path: "/admin/stock-count/pending", permission: "audit" },
       ],
     },
     {
       title: "Help",
-      items: [
-        {
-          title: "Support",
-          icon: LifeBuoy,
-          path: "/admin/support",
-          permission: "support",
-        },
-      ],
+      items: [{ title: "Support", icon: LifeBuoy, path: "/admin/support", permission: "support" }],
     },
   ];
 
-  const handleGroupToggle = (title) => {
-    setOpenGroup(title);
-  };
+  const handleGroupToggle = (title) => setOpenGroup(title);
 
-  // ── Early returns for subscription states ────────────────────
   if (subLoading) {
     return (
       <div className="h-screen flex items-center justify-center bg-slate-100">
@@ -297,36 +238,27 @@ export default function AdminLayout() {
   }
 
   if (subStatus && !subStatus.active && user?.role === "GENERAL_MANAGER") {
-    return (
-      <SubscriptionExpiredScreen
-        status={subStatus}
-        onRenewed={fetchSubStatus}
-      />
-    );
+    return <SubscriptionExpiredScreen status={subStatus} onRenewed={fetchSubStatus} />;
   }
 
-  // ── Normal layout ────────────────────────────────────────────
   return (
     <div className="flex h-screen bg-slate-100">
       {/* Sidebar */}
-      <div className="w-72 bg-slate-900 text-white flex flex-col border-r border-slate-800">
-        <div className="p-6 border-b border-slate-800 flex items-center gap-3">
-          <img
-            src={logo}
-            alt="Nova ERP"
-            className="w-10 h-10 rounded-lg object-contain"
-          />
+      <div className="w-72 bg-nova-950 text-white flex flex-col border-r border-white/5">
+        {/* Brand */}
+        <div className="p-6 border-b border-white/5 flex items-center gap-3">
+          <img src={logo} alt="Nova ERP™" className="w-14 h-14 rounded-xl object-contain" />
           <div>
-            <h1 className="text-xl font-bold tracking-tight leading-tight">
-              Nova ERP
+            <h1 className="text-lg font-bold tracking-tight leading-tight">
+              NOVA <span className="text-nova-cyan">ERP™</span>
             </h1>
-            <p className="text-slate-400 text-xs">Business Control Center</p>
+            <p className="text-slate-500 text-[11px]">Business Control Center</p>
           </div>
         </div>
 
-        {/* Store Switcher */}
+        {/* Store switcher */}
         {hasPermission(user?.role, "stores") && (
-          <div className="px-6 py-5 border-b border-slate-800">
+          <div className="px-6 py-5 border-b border-white/5">
             <StoreSwitcher
               stores={stores}
               currentStore={currentStore}
@@ -336,11 +268,12 @@ export default function AdminLayout() {
           </div>
         )}
 
+        {/* Go to POS */}
         {hasPermission(user?.role, "pos") && (
           <div className="px-3 pt-3">
             <button
               onClick={() => navigate("/")}
-              className="w-full flex items-center gap-3 px-5 py-3 bg-blue-600 hover:bg-blue-700 rounded-xl text-sm font-semibold transition-all"
+              className="w-full flex items-center gap-3 px-5 py-3 bg-nova-gradient hover:opacity-90 rounded-xl text-sm font-semibold transition-all"
             >
               <ShoppingCart size={18} />
               Go to POS
@@ -348,14 +281,13 @@ export default function AdminLayout() {
           </div>
         )}
 
-        {/* Scrollable Menu */}
+        {/* Navigation */}
         <div className="flex-1 overflow-y-auto p-3 space-y-1 custom-sidebar-scroll">
           {menuGroups.map((group) => {
             const visibleItems = group.items.filter(
               (item) =>
                 hasPermission(user?.role, item.permission) &&
-                (!entitlements ||
-                  entitlements.featureKeys.includes(item.permission))
+                (!entitlements || entitlements.featureKeys.includes(item.permission))
             );
             if (visibleItems.length === 0) return null;
 
@@ -365,14 +297,14 @@ export default function AdminLayout() {
               <div key={group.title}>
                 <button
                   onClick={() => handleGroupToggle(group.title)}
-                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-800 transition-all duration-200 rounded-xl"
+                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-white/5 transition-all duration-200 rounded-xl"
                 >
-                  <span className="font-semibold text-sm tracking-wider text-slate-200">
+                  <span className="font-semibold text-sm tracking-wider text-slate-300">
                     {group.title}
                   </span>
                   <ChevronDown
                     size={18}
-                    className={`transition-transform duration-300 ${
+                    className={`text-slate-500 transition-transform duration-300 ${
                       isOpen ? "rotate-180" : ""
                     }`}
                   />
@@ -392,15 +324,13 @@ export default function AdminLayout() {
                           onClick={() => navigate(item.path)}
                           className={`w-full flex items-center gap-3 px-6 py-3 rounded-xl text-sm transition-all duration-200 ${
                             isActive
-                              ? "bg-blue-600 text-white shadow-md shadow-blue-500/30"
-                              : "hover:bg-slate-800 text-slate-300 hover:text-white"
+                              ? "bg-nova-gradient text-white shadow-lg shadow-nova-blue/20"
+                              : "hover:bg-white/5 text-slate-400 hover:text-white"
                           }`}
                         >
                           <item.icon
                             size={18}
-                            className={
-                              isActive ? "text-white" : "text-slate-400"
-                            }
+                            className={isActive ? "text-white" : "text-slate-500"}
                           />
                           <span className="font-medium">{item.title}</span>
                           {isActive && (
@@ -412,44 +342,49 @@ export default function AdminLayout() {
                   </div>
                 </div>
 
-                <div className="h-px bg-slate-800 mx-4 my-1" />
+                <div className="h-px bg-white/5 mx-4 my-1" />
               </div>
             );
           })}
         </div>
 
-        {/* User Section */}
-        <div className="p-4 border-t border-slate-800 mt-auto">
-          <div className="flex items-center gap-3 mb-4 px-4">
-            <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center font-bold text-lg">
-              {user?.name?.charAt(0)}
+        {/* User footer */}
+        <div className="p-3 border-t border-white/5 mt-auto">
+          <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 transition-colors group">
+            {/* Avatar */}
+            <div className="w-9 h-9 rounded-full bg-nova-gradient flex items-center justify-center font-semibold text-sm text-white flex-shrink-0 ring-2 ring-white/10">
+              {user?.name?.charAt(0)?.toUpperCase() || "?"}
             </div>
-            <div>
-              <p className="font-medium">{user?.name}</p>
-              <p className="text-xs text-slate-400 capitalize">{user?.role}</p>
-            </div>
-          </div>
 
-          <button
-            onClick={() => {
-              logout();
-              navigate("/login");
-            }}
-            className="w-full bg-red-600 hover:bg-red-700 py-3 rounded-2xl flex items-center justify-center gap-2 font-medium transition-colors"
-          >
-            <LogOut size={18} />
-            Logout
-          </button>
+            {/* Name + role */}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-white truncate leading-tight">
+                {user?.name || "User"}
+              </p>
+              <p className="text-[11px] text-slate-400 capitalize truncate mt-0.5">
+                {user?.role?.replace(/_/g, " ").toLowerCase() || "—"}
+              </p>
+            </div>
+
+            {/* Logout */}
+            <button
+              onClick={handleLogout}
+              title="Log out"
+              className="p-2 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-70 group-hover:opacity-100"
+              aria-label="Log out"
+            >
+              <LogOut size={17} />
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Trial banner (GM only) */}
         {user?.role === "GENERAL_MANAGER" &&
           subStatus?.active &&
           subStatus.subscription?.status === "TRIALING" && (
-            <div className="bg-blue-600 text-white px-6 py-2 text-sm flex justify-between items-center shrink-0">
+            <div className="bg-nova-gradient text-white px-6 py-2 text-sm flex justify-between items-center shrink-0">
               <span>
                 {Math.max(
                   0,
@@ -470,19 +405,12 @@ export default function AdminLayout() {
           )}
 
         {user?.__investigation && (
-          <div className="bg-amber-500 text-white px-6 py-2 text-sm flex justify-between items-center">
+          <div className="bg-amber-500 text-white px-6 py-2 text-sm flex justify-between items-center shrink-0">
             <span>
               🔍 Viewing as support — impersonating {user.name} at{" "}
               {user.__investigation.companyName}. Every action here is logged.
             </span>
-            <button
-              onClick={() => {
-                logout();
-                window.close();
-                navigate("/platform/login");
-              }}
-              className="underline font-medium"
-            >
+            <button onClick={handleEndInvestigation} className="underline font-medium">
               End Investigation
             </button>
           </div>
@@ -493,7 +421,7 @@ export default function AdminLayout() {
         </div>
       </div>
 
-      {/* Floating Notification Bell */}
+      {/* Notification bell */}
       <div className="fixed bottom-6 right-8 z-30">
         <NotificationBell
           unreadCount={notifications.filter((n) => !n.isRead).length}

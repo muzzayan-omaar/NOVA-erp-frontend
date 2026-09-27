@@ -23,8 +23,14 @@ const TYPE_STYLES = {
   OUT: { label: "Stock Out", className: "bg-red-100 text-red-600" },
   SALE: { label: "Sale", className: "bg-blue-100 text-blue-600" },
   ADJUSTMENT: { label: "Adjustment", className: "bg-amber-100 text-amber-600" },
-  TRANSFER_OUT: { label: "Transfer Out", className: "bg-purple-100 text-purple-600" },
-  TRANSFER_IN: { label: "Transfer In", className: "bg-teal-100 text-teal-600" },
+  TRANSFER_OUT: {
+    label: "Transfer Out",
+    className: "bg-purple-100 text-purple-600",
+  },
+  TRANSFER_IN: {
+    label: "Transfer In",
+    className: "bg-teal-100 text-teal-600",
+  },
 };
 
 export default function InventoryModule() {
@@ -34,6 +40,7 @@ export default function InventoryModule() {
   const [products, setProducts] = useState([]);
   const [receiveSerialChecks, setReceiveSerialChecks] = useState({});
   const [loading, setLoading] = useState(true);
+  const [lowStockThreshold, setLowStockThreshold] = useState(10);
 
   const [showAdjust, setShowAdjust] = useState(false);
   const [showTransfer, setShowTransfer] = useState(false);
@@ -61,6 +68,17 @@ export default function InventoryModule() {
     inventoryValue: 0,
   });
 
+  useEffect(() => {
+    api
+      .get("/settings/thresholds")
+      .then((res) => {
+        if (res.data?.lowStockThreshold != null) {
+          setLowStockThreshold(res.data.lowStockThreshold);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const fetchInventory = async () => {
     try {
       setLoading(true);
@@ -74,7 +92,6 @@ export default function InventoryModule() {
         api.get("/inventory/movements", { params }),
         api.get("/products"),
         api.get("/inventory/transits"),
-
       ]);
 
       setMovements(movementRes.data);
@@ -87,7 +104,7 @@ export default function InventoryModule() {
       );
 
       const lowStock = productRes.data.filter(
-        (p) => (p.stockQuantity || 0) <= 10
+        (p) => (p.stockQuantity || 0) <= lowStockThreshold
       );
 
       const outStock = productRes.data.filter(
@@ -119,7 +136,14 @@ export default function InventoryModule() {
       fetchInventory();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.activeStoreId, user?.storeId, filterType, dateFrom, dateTo]);
+  }, [
+    user?.activeStoreId,
+    user?.storeId,
+    filterType,
+    dateFrom,
+    dateTo,
+    lowStockThreshold,
+  ]);
 
   const adjustStock = async () => {
     try {
@@ -159,51 +183,60 @@ export default function InventoryModule() {
   };
 
   const startReceiving = (transit) => {
-  setReceivingTransitId(transit.id);
-  setReceiveQty(String(transit.quantitySent));
-  if (transit.mode === "SERIAL") {
-    const initial = {};
-    transit.serials.forEach((s) => { initial[s.id] = true; });
-    setReceiveSerialChecks(initial);
-  }
-};
-
-const confirmReceiveSerialTransit = async (transitId) => {
-  try {
-    const receivedSerialIds = Object.entries(receiveSerialChecks)
-      .filter(([, checked]) => checked)
-      .map(([id]) => id);
-
-    const res = await api.post(`/inventory/transits/${transitId}/receive-serials`, { receivedSerialIds });
-
-    if (res.data.lostValue > 0) {
-      toast.error(`Received with missing units worth UGX ${res.data.lostValue.toLocaleString()} — flagged for review`);
-    } else {
-      toast.success("All units received");
+    setReceivingTransitId(transit.id);
+    setReceiveQty(String(transit.quantitySent));
+    if (transit.mode === "SERIAL") {
+      const initial = {};
+      transit.serials.forEach((s) => {
+        initial[s.id] = true;
+      });
+      setReceiveSerialChecks(initial);
     }
-    setReceivingTransitId(null);
-    fetchInventory();
-  } catch (err) {
-    toast.error(err?.response?.data?.message || "Failed to confirm receipt");
-  }
-};
+  };
 
-const confirmReceiveTransit = async (transitId) => {
-  try {
-    const res = await api.post(`/inventory/transits/${transitId}/receive`, {
-      quantityReceived: Number(receiveQty),
-    });
-    if (res.data.varianceValue > 0) {
-      toast.error(`Received with a shortfall worth UGX ${res.data.varianceValue.toLocaleString()} — flagged for review`);
-    } else {
-      toast.success("Received in full");
+  const confirmReceiveSerialTransit = async (transitId) => {
+    try {
+      const receivedSerialIds = Object.entries(receiveSerialChecks)
+        .filter(([, checked]) => checked)
+        .map(([id]) => id);
+
+      const res = await api.post(
+        `/inventory/transits/${transitId}/receive-serials`,
+        { receivedSerialIds }
+      );
+
+      if (res.data.lostValue > 0) {
+        toast.error(
+          `Received with missing units worth UGX ${res.data.lostValue.toLocaleString()} — flagged for review`
+        );
+      } else {
+        toast.success("All units received");
+      }
+      setReceivingTransitId(null);
+      fetchInventory();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to confirm receipt");
     }
-    setReceivingTransitId(null);
-    fetchInventory();
-  } catch (err) {
-    toast.error(err?.response?.data?.message || "Failed to confirm receipt");
-  }
-};
+  };
+
+  const confirmReceiveTransit = async (transitId) => {
+    try {
+      const res = await api.post(`/inventory/transits/${transitId}/receive`, {
+        quantityReceived: Number(receiveQty),
+      });
+      if (res.data.varianceValue > 0) {
+        toast.error(
+          `Received with a shortfall worth UGX ${res.data.varianceValue.toLocaleString()} — flagged for review`
+        );
+      } else {
+        toast.success("Received in full");
+      }
+      setReceivingTransitId(null);
+      fetchInventory();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to confirm receipt");
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -238,136 +271,155 @@ const confirmReceiveTransit = async (transitId) => {
         <Stat title="Stock Units" value={stats.totalStock} />
         <Stat title="Low Stock" value={stats.lowStockCount} />
         <Stat title="Out Stock" value={stats.outOfStockCount} />
-        <Stat title="Value" value={`UGX ${stats.inventoryValue.toLocaleString()}`} />
+        <Stat
+          title="Value"
+          value={`UGX ${stats.inventoryValue.toLocaleString()}`}
+        />
       </div>
 
       {transits.some((t) => t.status === "IN_TRANSIT") && (
-  <div className="bg-white rounded-3xl shadow p-8">
-    <h2 className="text-xl font-bold flex gap-3 mb-6">
-      <PackageCheck /> Stock Transfers In Transit
-    </h2>
+        <div className="bg-white rounded-3xl shadow p-8">
+          <h2 className="text-xl font-bold flex gap-3 mb-6">
+            <PackageCheck /> Stock Transfers In Transit
+          </h2>
 
-    <div className="space-y-3">
-      {transits
-        .filter((t) => t.status === "IN_TRANSIT")
-        .map((t) => {
-          const isIncoming = t.targetStore && t.sourceStore; // both present regardless; distinguish by comparing to current context isn't available client-side directly, so rely on which side has a receive action available (backend already scopes /receive to target store only)
-          return (
-            <div key={t.id} className="border rounded-2xl p-5">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="font-semibold">{t.product?.name}</p>
-                  <p className="text-sm text-slate-500 flex items-center gap-2 mt-1">
-                    <Send size={14} /> {t.sourceStore?.name} → {t.targetStore?.name}
-                  </p>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Dispatched by {t.dispatchedBy?.name} · {new Date(t.dispatchedAt).toLocaleString()}
-                  </p>
-                </div>
-                <p className="font-bold text-lg">{t.quantitySent} units</p>
-              </div>
+          <div className="space-y-3">
+            {transits
+              .filter((t) => t.status === "IN_TRANSIT")
+              .map((t) => {
+                return (
+                  <div key={t.id} className="border rounded-2xl p-5">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-semibold">{t.product?.name}</p>
+                        <p className="text-sm text-slate-500 flex items-center gap-2 mt-1">
+                          <Send size={14} /> {t.sourceStore?.name} →{" "}
+                          {t.targetStore?.name}
+                        </p>
+                        <p className="text-xs text-slate-400 mt-1">
+                          Dispatched by {t.dispatchedBy?.name} ·{" "}
+                          {new Date(t.dispatchedAt).toLocaleString()}
+                        </p>
+                      </div>
+                      <p className="font-bold text-lg">
+                        {t.quantitySent} units
+                      </p>
+                    </div>
 
-              {receivingTransitId === t.id ? (
-  <div className="mt-4 border-t pt-4 space-y-3">
-    {t.mode === "SERIAL" ? (
-      <>
-        <p className="text-sm font-semibold flex items-center gap-2">
-          Confirm which units actually arrived
-        </p>
-        <div className="space-y-2 max-h-48 overflow-y-auto border rounded-xl p-3">
-          {(t.serials || []).map((s) => (
-            <label key={s.id} className="flex items-center gap-3 text-sm">
-              <input
-                type="checkbox"
-                checked={receiveSerialChecks[s.id] ?? true}
-                onChange={(e) =>
-                  setReceiveSerialChecks({
-                    ...receiveSerialChecks,
-                    [s.id]: e.target.checked,
-                  })
-                }
-              />
-              <span className="font-mono">{s.serialNumber}</span>
-            </label>
-          ))}
-        </div>
-        <div className="flex gap-3">
-          <button
-            onClick={() => confirmReceiveSerialTransit(t.id)}
-            className="flex-1 bg-green-600 text-white py-3 rounded-xl font-semibold"
-          >
-            Confirm Receipt
-          </button>
-          <button
-            onClick={() => setReceivingTransitId(null)}
-            className="flex-1 bg-slate-200 py-3 rounded-xl font-semibold"
-          >
-            Cancel
-          </button>
-        </div>
-      </>
-    ) : (
-      <>
-        <input
-          type="number"
-          className="w-full p-3 border rounded-xl"
-          value={receiveQty}
-          onChange={(e) => setReceiveQty(e.target.value)}
-          placeholder="Quantity actually received"
-        />
-        <div className="flex gap-3">
-          <button
-            onClick={() => confirmReceiveTransit(t.id)}
-            className="flex-1 bg-green-600 text-white py-3 rounded-xl font-semibold"
-          >
-            Confirm Receipt
-          </button>
-          <button
-            onClick={() => setReceivingTransitId(null)}
-            className="flex-1 bg-slate-200 py-3 rounded-xl font-semibold"
-          >
-            Cancel
-          </button>
-        </div>
-      </>
-    )}
-  </div>
-) : (
-  <div className="mt-4 border-t pt-4 flex justify-end">
-    <button
-      onClick={() => startReceiving(t)}
-      className="flex items-center gap-2 text-sm font-medium text-green-600 px-4 py-2 rounded-xl border border-green-200 hover:bg-green-50"
-    >
-      <PackageCheck size={16} /> Receive This Transfer
-    </button>
-  </div>
-)}
-            </div>
-          );
-        })}
-    </div>
-  </div>
-)}
-
-{transits.some((t) => t.status === "VARIANCE") && (
-  <div className="bg-red-50 rounded-3xl p-6">
-    <h3 className="font-bold text-red-700 mb-3">Transfers With Missing Stock</h3>
-    <div className="space-y-2">
-      {transits
-        .filter((t) => t.status === "VARIANCE")
-        .map((t) => (
-          <div key={t.id} className="flex justify-between text-sm border-b border-red-200 py-2">
-            <span>
-              {t.product?.name}: {t.sourceStore?.name} → {t.targetStore?.name}
-            </span>
-            <span className="font-semibold text-red-700">
-              Sent {t.quantitySent}, received {t.quantityReceived}
-            </span>
+                    {receivingTransitId === t.id ? (
+                      <div className="mt-4 border-t pt-4 space-y-3">
+                        {t.mode === "SERIAL" ? (
+                          <>
+                            <p className="text-sm font-semibold flex items-center gap-2">
+                              Confirm which units actually arrived
+                            </p>
+                            <div className="space-y-2 max-h-48 overflow-y-auto border rounded-xl p-3">
+                              {(t.serials || []).map((s) => (
+                                <label
+                                  key={s.id}
+                                  className="flex items-center gap-3 text-sm"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={receiveSerialChecks[s.id] ?? true}
+                                    onChange={(e) =>
+                                      setReceiveSerialChecks({
+                                        ...receiveSerialChecks,
+                                        [s.id]: e.target.checked,
+                                      })
+                                    }
+                                  />
+                                  <span className="font-mono">
+                                    {s.serialNumber}
+                                  </span>
+                                </label>
+                              ))}
+                            </div>
+                            <div className="flex gap-3">
+                              <button
+                                onClick={() =>
+                                  confirmReceiveSerialTransit(t.id)
+                                }
+                                className="flex-1 bg-green-600 text-white py-3 rounded-xl font-semibold"
+                              >
+                                Confirm Receipt
+                              </button>
+                              <button
+                                onClick={() => setReceivingTransitId(null)}
+                                className="flex-1 bg-slate-200 py-3 rounded-xl font-semibold"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <input
+                              type="number"
+                              className="w-full p-3 border rounded-xl"
+                              value={receiveQty}
+                              onChange={(e) => setReceiveQty(e.target.value)}
+                              placeholder="Quantity actually received"
+                            />
+                            <div className="flex gap-3">
+                              <button
+                                onClick={() => confirmReceiveTransit(t.id)}
+                                className="flex-1 bg-green-600 text-white py-3 rounded-xl font-semibold"
+                              >
+                                Confirm Receipt
+                              </button>
+                              <button
+                                onClick={() => setReceivingTransitId(null)}
+                                className="flex-1 bg-slate-200 py-3 rounded-xl font-semibold"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="mt-4 border-t pt-4 flex justify-end">
+                        <button
+                          onClick={() => startReceiving(t)}
+                          className="flex items-center gap-2 text-sm font-medium text-green-600 px-4 py-2 rounded-xl border border-green-200 hover:bg-green-50"
+                        >
+                          <PackageCheck size={16} /> Receive This Transfer
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
           </div>
-        ))}
-    </div>
-  </div>
-)}
+        </div>
+      )}
+
+      {transits.some((t) => t.status === "VARIANCE") && (
+        <div className="bg-red-50 rounded-3xl p-6">
+          <h3 className="font-bold text-red-700 mb-3">
+            Transfers With Missing Stock
+          </h3>
+          <div className="space-y-2">
+            {transits
+              .filter((t) => t.status === "VARIANCE")
+              .map((t) => (
+                <div
+                  key={t.id}
+                  className="flex justify-between text-sm border-b border-red-200 py-2"
+                >
+                  <span>
+                    {t.product?.name}: {t.sourceStore?.name} →{" "}
+                    {t.targetStore?.name}
+                  </span>
+                  <span className="font-semibold text-red-700">
+                    Sent {t.quantitySent}, received {t.quantityReceived}
+                  </span>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
 
       {/* FILTERS */}
       <div className="bg-white rounded-3xl shadow p-5 space-y-4">
@@ -443,9 +495,10 @@ const confirmReceiveTransit = async (transitId) => {
           <p className="text-center text-slate-500">No movements found</p>
         ) : (
           filteredMovements.map((m) => {
-            const style = TYPE_STYLES[m.type] || { label: m.type, className: "bg-slate-100 text-slate-600" };
-            const isPositive = ["IN", "TRANSFER_IN"].includes(m.type) || (m.type === "ADJUSTMENT" && false);
-            const isTransfer = m.type === "TRANSFER_OUT" || m.type === "TRANSFER_IN";
+            const style = TYPE_STYLES[m.type] || {
+              label: m.type,
+              className: "bg-slate-100 text-slate-600",
+            };
 
             return (
               <div
@@ -454,21 +507,28 @@ const confirmReceiveTransit = async (transitId) => {
               >
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${style.className}`}>
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-semibold ${style.className}`}
+                    >
                       {style.label}
                     </span>
                     <p className="font-bold">{m.product?.name}</p>
                   </div>
 
-                  <p className="text-sm text-slate-500 mt-1">{m.reason || "No reason given"}</p>
+                  <p className="text-sm text-slate-500 mt-1">
+                    {m.reason || "No reason given"}
+                  </p>
 
-                  {isTransfer && (m.sourceStore || m.targetStore) && (
-                    <p className="text-xs text-slate-400 mt-1">
-                      {m.type === "TRANSFER_OUT"
-                        ? `→ sent to ${m.targetStore?.name || "another store"}`
-                        : `← received from ${m.sourceStore?.name || "another store"}`}
-                    </p>
-                  )}
+                  {(m.type === "TRANSFER_OUT" || m.type === "TRANSFER_IN") &&
+                    (m.sourceStore || m.targetStore) && (
+                      <p className="text-xs text-slate-400 mt-1">
+                        {m.type === "TRANSFER_OUT"
+                          ? `→ sent to ${m.targetStore?.name || "another store"}`
+                          : `← received from ${
+                              m.sourceStore?.name || "another store"
+                            }`}
+                      </p>
+                    )}
 
                   <p className="text-xs text-slate-400 mt-1">
                     by {m.createdBy?.name || "Unknown"}
@@ -476,19 +536,31 @@ const confirmReceiveTransit = async (transitId) => {
                 </div>
 
                 <div className="text-right">
-                  <p className={`font-bold flex items-center gap-1 justify-end ${
-                    m.type === "OUT" || m.type === "SALE" || m.type === "TRANSFER_OUT"
-                      ? "text-red-600"
-                      : m.type === "ADJUSTMENT"
-                      ? "text-amber-600"
-                      : "text-green-600"
-                  }`}>
-                    {m.type === "OUT" || m.type === "SALE" || m.type === "TRANSFER_OUT" ? (
+                  <p
+                    className={`font-bold flex items-center gap-1 justify-end ${
+                      m.type === "OUT" ||
+                      m.type === "SALE" ||
+                      m.type === "TRANSFER_OUT"
+                        ? "text-red-600"
+                        : m.type === "ADJUSTMENT"
+                        ? "text-amber-600"
+                        : "text-green-600"
+                    }`}
+                  >
+                    {m.type === "OUT" ||
+                    m.type === "SALE" ||
+                    m.type === "TRANSFER_OUT" ? (
                       <ArrowDown size={16} />
                     ) : m.type !== "ADJUSTMENT" ? (
                       <ArrowUp size={16} />
                     ) : null}
-                    {m.type === "ADJUSTMENT" ? "→ " : m.type === "OUT" || m.type === "SALE" || m.type === "TRANSFER_OUT" ? "-" : "+"}
+                    {m.type === "ADJUSTMENT"
+                      ? "→ "
+                      : m.type === "OUT" ||
+                        m.type === "SALE" ||
+                        m.type === "TRANSFER_OUT"
+                      ? "-"
+                      : "+"}
                     {m.quantity}
                   </p>
 
@@ -516,7 +588,9 @@ const confirmReceiveTransit = async (transitId) => {
             <select
               className="w-full p-4 border rounded-xl"
               value={adjustment.productId}
-              onChange={(e) => setAdjustment({ ...adjustment, productId: e.target.value })}
+              onChange={(e) =>
+                setAdjustment({ ...adjustment, productId: e.target.value })
+              }
             >
               <option value="">Select Product</option>
               {products.map((p) => (
@@ -531,13 +605,17 @@ const confirmReceiveTransit = async (transitId) => {
               type="number"
               placeholder="Quantity"
               value={adjustment.quantity}
-              onChange={(e) => setAdjustment({ ...adjustment, quantity: e.target.value })}
+              onChange={(e) =>
+                setAdjustment({ ...adjustment, quantity: e.target.value })
+              }
             />
 
             <select
               className="w-full p-4 border rounded-xl"
               value={adjustment.type}
-              onChange={(e) => setAdjustment({ ...adjustment, type: e.target.value })}
+              onChange={(e) =>
+                setAdjustment({ ...adjustment, type: e.target.value })
+              }
             >
               <option value="IN">Stock In</option>
               <option value="OUT">Stock Out</option>
@@ -548,7 +626,9 @@ const confirmReceiveTransit = async (transitId) => {
               className="w-full p-4 border rounded-xl"
               placeholder="Reason"
               value={adjustment.reason}
-              onChange={(e) => setAdjustment({ ...adjustment, reason: e.target.value })}
+              onChange={(e) =>
+                setAdjustment({ ...adjustment, reason: e.target.value })
+              }
             />
 
             <button

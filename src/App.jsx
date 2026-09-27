@@ -48,6 +48,7 @@ import PendingStockCountReviews from "./admin/modules/stock-count/PendingStockCo
 import QuotesModule from "./admin/modules/QuotesModule";
 import QuoteDetail from "./admin/modules/quotes/QuoteDetail";
 import BankReconciliationModule from "./admin/modules/BankReconciliationModule";
+import SettingsModule from "./admin/modules/SettingsModule";
 
 import AuthGate from "./guards/AuthGate";
 import useAuthStore from "./store/useAuthStore";
@@ -304,6 +305,14 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+  path="settings"
+  element={
+    <ProtectedRoute permission="dashboard">
+      <SettingsModule />
+    </ProtectedRoute>
+  }
+/>
 
           <Route
             path="reports"

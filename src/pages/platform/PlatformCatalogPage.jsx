@@ -2,10 +2,17 @@ import { useEffect, useState } from "react";
 import platformApi from "../../services/platformApi";
 import toast from "react-hot-toast";
 import { Layers, Plus, Save, Power } from "lucide-react";
+import { useConfirm } from "../../components/ui/ConfirmProvider";
 
 const EXTRA_FEATURES = [
-  "stores", "users", "payroll", "reports", "expenses",
-  "audit", "suppliers", "payments"
+  "stores",
+  "users",
+  "payroll",
+  "reports",
+  "expenses",
+  "audit",
+  "suppliers",
+  "payments",
 ];
 
 export default function PlatformCatalogPage() {
@@ -23,10 +30,16 @@ export default function PlatformCatalogPage() {
             key={t}
             onClick={() => setTab(t)}
             className={`px-5 py-2 rounded-xl text-sm font-medium transition ${
-              tab === t ? "bg-blue-600 text-white" : "text-slate-500 hover:bg-slate-100"
+              tab === t
+                ? "bg-blue-600 text-white"
+                : "text-slate-500 hover:bg-slate-100"
             }`}
           >
-            {t === "bundles" ? "Bundles" : t === "packages" ? "Packages" : "Billing Cycles"}
+            {t === "bundles"
+              ? "Bundles"
+              : t === "packages"
+              ? "Packages"
+              : "Billing Cycles"}
           </button>
         ))}
       </div>
@@ -41,11 +54,18 @@ export default function PlatformCatalogPage() {
 /* ---------------- Bundles ---------------- */
 
 function BundlesTab() {
+  const { confirm } = useConfirm();
   const [bundles, setBundles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ code: "", name: "", description: "", price: "", featureKeys: [] });
+  const [form, setForm] = useState({
+    code: "",
+    name: "",
+    description: "",
+    price: "",
+    featureKeys: [],
+  });
 
   const fetchBundles = async () => {
     try {
@@ -59,7 +79,9 @@ function BundlesTab() {
     }
   };
 
-  useEffect(() => { fetchBundles(); }, []);
+  useEffect(() => {
+    fetchBundles();
+  }, []);
 
   const toggleFeature = (key) => {
     setForm((f) => ({
@@ -78,9 +100,18 @@ function BundlesTab() {
     }
     try {
       setSaving(true);
-      await platformApi.post("/platform/bundles", { ...form, price: Number(form.price) });
+      await platformApi.post("/platform/bundles", {
+        ...form,
+        price: Number(form.price),
+      });
       toast.success("Bundle created");
-      setForm({ code: "", name: "", description: "", price: "", featureKeys: [] });
+      setForm({
+        code: "",
+        name: "",
+        description: "",
+        price: "",
+        featureKeys: [],
+      });
       setShowForm(false);
       fetchBundles();
     } catch (err) {
@@ -91,9 +122,20 @@ function BundlesTab() {
   };
 
   const toggleActive = async (bundle) => {
-    if (!window.confirm(`${bundle.isActive ? "Retire" : "Reactivate"} "${bundle.name}"?`)) return;
+    const ok = await confirm({
+      title: `${bundle.isActive ? "Retire" : "Reactivate"} "${bundle.name}"?`,
+      message: bundle.isActive
+        ? "Companies already using this bundle keep it — this only stops it from being offered to new ones."
+        : "This bundle becomes available to offer again.",
+      confirmText: bundle.isActive ? "Retire" : "Reactivate",
+      variant: bundle.isActive ? "danger" : "info",
+    });
+    if (!ok) return;
+
     try {
-      await platformApi.patch(`/platform/bundles/${bundle.id}/status`, { isActive: !bundle.isActive });
+      await platformApi.patch(`/platform/bundles/${bundle.id}/status`, {
+        isActive: !bundle.isActive,
+      });
       fetchBundles();
     } catch (err) {
       toast.error("Failed to update bundle");
@@ -110,13 +152,18 @@ function BundlesTab() {
       </button>
 
       {showForm && (
-        <form onSubmit={createBundle} className="bg-white rounded-3xl shadow p-6 space-y-4">
+        <form
+          onSubmit={createBundle}
+          className="bg-white rounded-3xl shadow p-6 space-y-4"
+        >
           <div className="grid grid-cols-3 gap-4">
             <input
               placeholder="Code (e.g. TEAM_PAYROLL)"
               className="p-3 border rounded-2xl"
               value={form.code}
-              onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
+              onChange={(e) =>
+                setForm({ ...form, code: e.target.value.toUpperCase() })
+              }
             />
             <input
               placeholder="Name"
@@ -139,7 +186,9 @@ function BundlesTab() {
             onChange={(e) => setForm({ ...form, description: e.target.value })}
           />
           <div>
-            <p className="text-sm font-medium text-slate-700 mb-2">Features included</p>
+            <p className="text-sm font-medium text-slate-700 mb-2">
+              Features included
+            </p>
             <div className="flex flex-wrap gap-2">
               {EXTRA_FEATURES.map((key) => (
                 <button
@@ -177,21 +226,32 @@ function BundlesTab() {
                 <div className="flex justify-between items-start">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs bg-slate-100 px-2 py-1 rounded-lg">{b.code}</span>
+                      <span className="font-mono text-xs bg-slate-100 px-2 py-1 rounded-lg">
+                        {b.code}
+                      </span>
                       {!b.isActive && (
-                        <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded-lg font-semibold">RETIRED</span>
+                        <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded-lg font-semibold">
+                          RETIRED
+                        </span>
                       )}
                     </div>
                     <p className="font-semibold mt-2">{b.name}</p>
                     <p className="text-sm text-slate-500">{b.description}</p>
                     <div className="flex flex-wrap gap-1 mt-2">
                       {b.featureKeys.map((k) => (
-                        <span key={k} className="text-xs bg-slate-100 px-2 py-1 rounded-lg">{k}</span>
+                        <span
+                          key={k}
+                          className="text-xs bg-slate-100 px-2 py-1 rounded-lg"
+                        >
+                          {k}
+                        </span>
                       ))}
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold">UGX {Number(b.price).toLocaleString()}/mo</p>
+                    <p className="font-bold">
+                      UGX {Number(b.price).toLocaleString()}/mo
+                    </p>
                     <button
                       onClick={() => toggleActive(b)}
                       className={`mt-2 flex items-center gap-1 text-xs px-3 py-2 rounded-xl font-medium ${
@@ -216,13 +276,20 @@ function BundlesTab() {
 /* ---------------- Packages ---------------- */
 
 function PackagesTab() {
+  const { confirm } = useConfirm();
   const [packages, setPackages] = useState([]);
   const [bundles, setBundles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
-    code: "", name: "", description: "", price: "", maxStores: "1", maxUsers: "3", bundleIds: [],
+    code: "",
+    name: "",
+    description: "",
+    price: "",
+    maxStores: "1",
+    maxUsers: "3",
+    bundleIds: [],
   });
 
   const fetchAll = async () => {
@@ -241,12 +308,16 @@ function PackagesTab() {
     }
   };
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => {
+    fetchAll();
+  }, []);
 
   const toggleBundle = (id) => {
     setForm((f) => ({
       ...f,
-      bundleIds: f.bundleIds.includes(id) ? f.bundleIds.filter((b) => b !== id) : [...f.bundleIds, id],
+      bundleIds: f.bundleIds.includes(id)
+        ? f.bundleIds.filter((b) => b !== id)
+        : [...f.bundleIds, id],
     }));
   };
 
@@ -260,7 +331,15 @@ function PackagesTab() {
       setSaving(true);
       await platformApi.post("/platform/packages", form);
       toast.success("Package created");
-      setForm({ code: "", name: "", description: "", price: "", maxStores: "1", maxUsers: "3", bundleIds: [] });
+      setForm({
+        code: "",
+        name: "",
+        description: "",
+        price: "",
+        maxStores: "1",
+        maxUsers: "3",
+        bundleIds: [],
+      });
       setShowForm(false);
       fetchAll();
     } catch (err) {
@@ -271,9 +350,20 @@ function PackagesTab() {
   };
 
   const toggleActive = async (pkg) => {
-    if (!window.confirm(`${pkg.isActive ? "Retire" : "Reactivate"} "${pkg.name}"?`)) return;
+    const ok = await confirm({
+      title: `${pkg.isActive ? "Retire" : "Reactivate"} "${pkg.name}"?`,
+      message: pkg.isActive
+        ? "Companies already on this package keep it — this only stops it from being offered to new signups."
+        : "This package becomes available to offer again.",
+      confirmText: pkg.isActive ? "Retire" : "Reactivate",
+      variant: pkg.isActive ? "danger" : "info",
+    });
+    if (!ok) return;
+
     try {
-      await platformApi.patch(`/platform/packages/${pkg.id}/status`, { isActive: !pkg.isActive });
+      await platformApi.patch(`/platform/packages/${pkg.id}/status`, {
+        isActive: !pkg.isActive,
+      });
       fetchAll();
     } catch (err) {
       toast.error("Failed to update package");
@@ -290,13 +380,18 @@ function PackagesTab() {
       </button>
 
       {showForm && (
-        <form onSubmit={createPackage} className="bg-white rounded-3xl shadow p-6 space-y-4">
+        <form
+          onSubmit={createPackage}
+          className="bg-white rounded-3xl shadow p-6 space-y-4"
+        >
           <div className="grid grid-cols-2 gap-4">
             <input
               placeholder="Code (e.g. GROWTH)"
               className="p-3 border rounded-2xl"
               value={form.code}
-              onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
+              onChange={(e) =>
+                setForm({ ...form, code: e.target.value.toUpperCase() })
+              }
             />
             <input
               placeholder="Name"
@@ -335,7 +430,9 @@ function PackagesTab() {
             />
           </div>
           <div>
-            <p className="text-sm font-medium text-slate-700 mb-2">Included Bundles</p>
+            <p className="text-sm font-medium text-slate-700 mb-2">
+              Included Bundles
+            </p>
             <div className="flex flex-wrap gap-2">
               {bundles.map((b) => (
                 <button
@@ -343,7 +440,9 @@ function PackagesTab() {
                   key={b.id}
                   onClick={() => toggleBundle(b.id)}
                   className={`px-3 py-2 rounded-xl text-sm ${
-                    form.bundleIds.includes(b.id) ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600"
+                    form.bundleIds.includes(b.id)
+                      ? "bg-blue-600 text-white"
+                      : "bg-slate-100 text-slate-600"
                   }`}
                 >
                   {b.name}
@@ -371,9 +470,13 @@ function PackagesTab() {
                 <div className="flex justify-between items-start">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs bg-slate-100 px-2 py-1 rounded-lg">{p.code}</span>
+                      <span className="font-mono text-xs bg-slate-100 px-2 py-1 rounded-lg">
+                        {p.code}
+                      </span>
                       {!p.isActive && (
-                        <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded-lg font-semibold">RETIRED</span>
+                        <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded-lg font-semibold">
+                          RETIRED
+                        </span>
                       )}
                     </div>
                     <p className="font-semibold mt-2">{p.name}</p>
@@ -382,14 +485,19 @@ function PackagesTab() {
                     </p>
                     <div className="flex flex-wrap gap-1 mt-2">
                       {p.bundles?.map((pb) => (
-                        <span key={pb.bundle.id} className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded-lg">
+                        <span
+                          key={pb.bundle.id}
+                          className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded-lg"
+                        >
                           {pb.bundle.name}
                         </span>
                       ))}
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold">UGX {Number(p.price).toLocaleString()}/mo</p>
+                    <p className="font-bold">
+                      UGX {Number(p.price).toLocaleString()}/mo
+                    </p>
                     <button
                       onClick={() => toggleActive(p)}
                       className={`mt-2 flex items-center gap-1 text-xs px-3 py-2 rounded-xl font-medium ${
@@ -418,7 +526,12 @@ function BillingCyclesTab() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ code: "", name: "", payMonths: "", bonusMonths: "0" });
+  const [form, setForm] = useState({
+    code: "",
+    name: "",
+    payMonths: "",
+    bonusMonths: "0",
+  });
 
   const fetchCycles = async () => {
     try {
@@ -432,7 +545,9 @@ function BillingCyclesTab() {
     }
   };
 
-  useEffect(() => { fetchCycles(); }, []);
+  useEffect(() => {
+    fetchCycles();
+  }, []);
 
   const createCycle = async (e) => {
     e.preventDefault();
@@ -448,7 +563,9 @@ function BillingCyclesTab() {
       setShowForm(false);
       fetchCycles();
     } catch (err) {
-      toast.error(err?.response?.data?.message || "Failed to create billing cycle");
+      toast.error(
+        err?.response?.data?.message || "Failed to create billing cycle"
+      );
     } finally {
       setSaving(false);
     }
@@ -456,7 +573,9 @@ function BillingCyclesTab() {
 
   const toggleActive = async (cycle) => {
     try {
-      await platformApi.patch(`/platform/billing-cycles/${cycle.id}/status`, { isActive: !cycle.isActive });
+      await platformApi.patch(`/platform/billing-cycles/${cycle.id}/status`, {
+        isActive: !cycle.isActive,
+      });
       fetchCycles();
     } catch (err) {
       toast.error("Failed to update billing cycle");
@@ -473,13 +592,18 @@ function BillingCyclesTab() {
       </button>
 
       {showForm && (
-        <form onSubmit={createCycle} className="bg-white rounded-3xl shadow p-6 space-y-4">
+        <form
+          onSubmit={createCycle}
+          className="bg-white rounded-3xl shadow p-6 space-y-4"
+        >
           <div className="grid grid-cols-2 gap-4">
             <input
               placeholder="Code (e.g. QUARTERLY)"
               className="p-3 border rounded-2xl"
               value={form.code}
-              onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
+              onChange={(e) =>
+                setForm({ ...form, code: e.target.value.toUpperCase() })
+              }
             />
             <input
               placeholder="Name"
@@ -495,7 +619,9 @@ function BillingCyclesTab() {
                 type="number"
                 className="w-full p-3 border rounded-2xl mt-1"
                 value={form.payMonths}
-                onChange={(e) => setForm({ ...form, payMonths: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, payMonths: e.target.value })
+                }
               />
             </div>
             <div>
@@ -504,7 +630,9 @@ function BillingCyclesTab() {
                 type="number"
                 className="w-full p-3 border rounded-2xl mt-1"
                 value={form.bonusMonths}
-                onChange={(e) => setForm({ ...form, bonusMonths: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, bonusMonths: e.target.value })
+                }
               />
             </div>
           </div>
@@ -524,7 +652,10 @@ function BillingCyclesTab() {
         ) : (
           <div className="divide-y">
             {cycles.map((c) => (
-              <div key={c.id} className="flex justify-between items-center py-4 px-2">
+              <div
+                key={c.id}
+                className="flex justify-between items-center py-4 px-2"
+              >
                 <div>
                   <p className="font-semibold">{c.name}</p>
                   <p className="text-sm text-slate-500">

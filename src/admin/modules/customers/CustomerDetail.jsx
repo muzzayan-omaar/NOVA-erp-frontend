@@ -1,14 +1,14 @@
-
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../../../services/api";
 import toast from "react-hot-toast";
 import { ArrowLeft, Phone, DollarSign, Trash2, Building2, Plus, X } from "lucide-react";
-
+import { useConfirm } from "../../../components/ui/ConfirmProvider";
 
 export default function CustomerDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { confirm } = useConfirm();
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -39,6 +39,7 @@ export default function CustomerDetail() {
 
   useEffect(() => {
     fetchAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const handlePayment = async (e) => {
@@ -67,7 +68,15 @@ export default function CustomerDetail() {
   };
 
   const handleDelete = async () => {
-    if (!window.confirm("Delete this customer? This cannot be undone.")) return;
+    const ok = await confirm({
+      title: "Delete this customer?",
+      message:
+        "This cannot be undone. Their full credit and payment history will be gone with them.",
+      confirmText: "Delete Customer",
+      variant: "danger",
+    });
+    if (!ok) return;
+
     try {
       setDeleting(true);
       await api.delete(`/customers/${id}`);
@@ -91,39 +100,43 @@ export default function CustomerDetail() {
     }
   };
 
+  const createProject = async (e) => {
+    e.preventDefault();
+    if (!projectForm.name) {
+      toast.error("Project name is required");
+      return;
+    }
+    try {
+      setCreatingProject(true);
+      await api.post(`/customers/${id}/projects`, projectForm);
+      toast.success("Project added");
+      setProjectForm({ name: "", location: "" });
+      setShowProjectForm(false);
+      fetchAll();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to add project");
+    } finally {
+      setCreatingProject(false);
+    }
+  };
+
+  const toggleProjectActive = async (project) => {
+    try {
+      await api.patch(`/customers/${id}/projects/${project.id}`, {
+        isActive: !project.isActive,
+      });
+      toast.success(project.isActive ? "Project archived" : "Project reactivated");
+      fetchAll();
+    } catch (err) {
+      toast.error("Failed to update project");
+    }
+  };
+
   if (loading) return <p className="text-center py-20">Loading...</p>;
   if (!data) return <p className="text-center py-20">Customer not found</p>;
 
   const { customer, creditSales, payments, analytics } = data;
-  const createProject = async (e) => {
-  e.preventDefault();
-  if (!projectForm.name) {
-    toast.error("Project name is required");
-    return;
-  }
-  try {
-    setCreatingProject(true);
-    await api.post(`/customers/${id}/projects`, projectForm);
-    toast.success("Project added");
-    setProjectForm({ name: "", location: "" });
-    setShowProjectForm(false);
-    fetchAll();
-  } catch (err) {
-    toast.error(err?.response?.data?.message || "Failed to add project");
-  } finally {
-    setCreatingProject(false);
-  }
-};
 
-const toggleProjectActive = async (project) => {
-  try {
-    await api.patch(`/customers/${id}/projects/${project.id}`, { isActive: !project.isActive });
-    toast.success(project.isActive ? "Project archived" : "Project reactivated");
-    fetchAll();
-  } catch (err) {
-    toast.error("Failed to update project");
-  }
-};
   return (
     <div className="space-y-6">
       <button
@@ -144,47 +157,47 @@ const toggleProjectActive = async (project) => {
             </p>
 
             <div className="mt-3 flex items-center gap-2">
-  <span className="text-sm text-slate-500">Credit Limit:</span>
-  {editingLimit ? (
-    <>
-      <input
-        type="number"
-        className="p-2 border rounded-xl text-sm w-32"
-        value={limitInput}
-        onChange={(e) => setLimitInput(e.target.value)}
-      />
-      <button
-        onClick={saveLimit}
-        className="text-sm bg-blue-600 text-white px-3 py-2 rounded-xl"
-      >
-        Save
-      </button>
-      <button
-        onClick={() => setEditingLimit(false)}
-        className="text-sm px-3 py-2"
-      >
-        Cancel
-      </button>
-    </>
-  ) : (
-    <>
-      <span className="font-semibold">
-        {customer.creditLimit > 0
-          ? `UGX ${Number(customer.creditLimit).toLocaleString()}`
-          : "No limit set"}
-      </span>
-      <button
-        onClick={() => {
-          setLimitInput(customer.creditLimit || "");
-          setEditingLimit(true);
-        }}
-        className="text-xs text-blue-600 underline"
-      >
-        Edit
-      </button>
-    </>
-  )}
-</div>
+              <span className="text-sm text-slate-500">Credit Limit:</span>
+              {editingLimit ? (
+                <>
+                  <input
+                    type="number"
+                    className="p-2 border rounded-xl text-sm w-32"
+                    value={limitInput}
+                    onChange={(e) => setLimitInput(e.target.value)}
+                  />
+                  <button
+                    onClick={saveLimit}
+                    className="text-sm bg-blue-600 text-white px-3 py-2 rounded-xl"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => setEditingLimit(false)}
+                    className="text-sm px-3 py-2"
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <>
+                  <span className="font-semibold">
+                    {customer.creditLimit > 0
+                      ? `UGX ${Number(customer.creditLimit).toLocaleString()}`
+                      : "No limit set"}
+                  </span>
+                  <button
+                    onClick={() => {
+                      setLimitInput(customer.creditLimit || "");
+                      setEditingLimit(true);
+                    }}
+                    className="text-xs text-blue-600 underline"
+                  >
+                    Edit
+                  </button>
+                </>
+              )}
+            </div>
           </div>
 
           <div className="flex gap-3">
@@ -197,7 +210,7 @@ const toggleProjectActive = async (project) => {
             <button
               onClick={handleDelete}
               disabled={deleting}
-              className="bg-red-50 text-red-600 px-4 py-3 rounded-2xl flex items-center gap-2 font-semibold border border-red-200"
+              className="bg-red-50 text-red-600 px-4 py-3 rounded-2xl flex items-center gap-2 font-semibold border border-red-200 disabled:opacity-50"
             >
               <Trash2 size={18} />
             </button>
@@ -214,7 +227,9 @@ const toggleProjectActive = async (project) => {
         </div>
         <div className="bg-white rounded-3xl shadow p-5">
           <p className="text-xs text-slate-500">Credit Issued</p>
-          <p className="text-2xl font-bold">UGX {analytics.totalCreditIssued.toLocaleString()}</p>
+          <p className="text-2xl font-bold">
+            UGX {analytics.totalCreditIssued.toLocaleString()}
+          </p>
         </div>
         <div className="bg-white rounded-3xl shadow p-5">
           <p className="text-xs text-slate-500">Total Paid</p>
@@ -229,84 +244,108 @@ const toggleProjectActive = async (project) => {
         <div className="bg-white rounded-3xl shadow p-5">
           <p className="text-xs text-slate-500">Last Sale</p>
           <p className="text-lg font-bold">
-            {analytics.lastSaleDate ? new Date(analytics.lastSaleDate).toLocaleDateString() : "—"}
+            {analytics.lastSaleDate
+              ? new Date(analytics.lastSaleDate).toLocaleDateString()
+              : "—"}
           </p>
         </div>
       </div>
 
       <div className="bg-white rounded-3xl shadow p-8">
-  <div className="flex justify-between items-center mb-4">
-    <h2 className="text-lg font-bold flex items-center gap-2">
-      <Building2 size={20} /> Job Sites / Projects
-    </h2>
-    <button
-      onClick={() => setShowProjectForm(!showProjectForm)}
-      className="text-sm bg-blue-600 text-white px-4 py-2 rounded-xl font-medium flex items-center gap-2"
-    >
-      {showProjectForm ? <X size={16} /> : <Plus size={16} />}
-      {showProjectForm ? "Cancel" : "Add Project"}
-    </button>
-  </div>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-bold flex items-center gap-2">
+            <Building2 size={20} /> Job Sites / Projects
+          </h2>
+          <button
+            onClick={() => setShowProjectForm(!showProjectForm)}
+            className="text-sm bg-blue-600 text-white px-4 py-2 rounded-xl font-medium flex items-center gap-2"
+          >
+            {showProjectForm ? <X size={16} /> : <Plus size={16} />}
+            {showProjectForm ? "Cancel" : "Add Project"}
+          </button>
+        </div>
 
-  <p className="text-xs text-slate-400 mb-4">
-    Projects tag which job site a sale went to — the credit balance above is
-    always shared across all of them, not split per project.
-  </p>
+        <p className="text-xs text-slate-400 mb-4">
+          Projects tag which job site a sale went to — the credit balance above is
+          always shared across all of them, not split per project.
+        </p>
 
-  {showProjectForm && (
-    <form onSubmit={createProject} className="bg-slate-50 rounded-2xl p-4 mb-4 flex gap-3">
-      <input
-        placeholder="Project name (e.g. Kira Road Site)"
-        className="flex-1 p-3 border rounded-xl text-sm"
-        value={projectForm.name}
-        onChange={(e) => setProjectForm({ ...projectForm, name: e.target.value })}
-      />
-      <input
-        placeholder="Location (optional)"
-        className="flex-1 p-3 border rounded-xl text-sm"
-        value={projectForm.location}
-        onChange={(e) => setProjectForm({ ...projectForm, location: e.target.value })}
-      />
-      <button
-        type="submit"
-        disabled={creatingProject}
-        className="bg-blue-600 text-white px-5 rounded-xl font-medium disabled:opacity-50"
-      >
-        Save
-      </button>
-    </form>
-  )}
-
-  {data.projects?.length === 0 && data.untaggedSalesTotal === 0 ? (
-    <p className="text-slate-400 text-sm text-center py-6">No projects yet</p>
-  ) : (
-    <div className="space-y-2">
-      {data.projects?.map((p) => (
-        <div key={p.id} className="flex justify-between items-center border rounded-xl p-3 text-sm">
-          <div>
-            <p className={`font-medium ${!p.isActive ? "text-slate-400 line-through" : ""}`}>{p.name}</p>
-            {p.location && <p className="text-xs text-slate-400">{p.location}</p>}
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="font-semibold">UGX {p.salesTotal.toLocaleString()}</span>
+        {showProjectForm && (
+          <form
+            onSubmit={createProject}
+            className="bg-slate-50 rounded-2xl p-4 mb-4 flex gap-3"
+          >
+            <input
+              placeholder="Project name (e.g. Kira Road Site)"
+              className="flex-1 p-3 border rounded-xl text-sm"
+              value={projectForm.name}
+              onChange={(e) =>
+                setProjectForm({ ...projectForm, name: e.target.value })
+              }
+            />
+            <input
+              placeholder="Location (optional)"
+              className="flex-1 p-3 border rounded-xl text-sm"
+              value={projectForm.location}
+              onChange={(e) =>
+                setProjectForm({ ...projectForm, location: e.target.value })
+              }
+            />
             <button
-              onClick={() => toggleProjectActive(p)}
-              className="text-xs text-blue-600 underline"
+              type="submit"
+              disabled={creatingProject}
+              className="bg-blue-600 text-white px-5 rounded-xl font-medium disabled:opacity-50"
             >
-              {p.isActive ? "Archive" : "Reactivate"}
+              Save
             </button>
+          </form>
+        )}
+
+        {data.projects?.length === 0 && data.untaggedSalesTotal === 0 ? (
+          <p className="text-slate-400 text-sm text-center py-6">No projects yet</p>
+        ) : (
+          <div className="space-y-2">
+            {data.projects?.map((p) => (
+              <div
+                key={p.id}
+                className="flex justify-between items-center border rounded-xl p-3 text-sm"
+              >
+                <div>
+                  <p
+                    className={`font-medium ${
+                      !p.isActive ? "text-slate-400 line-through" : ""
+                    }`}
+                  >
+                    {p.name}
+                  </p>
+                  {p.location && (
+                    <p className="text-xs text-slate-400">{p.location}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="font-semibold">
+                    UGX {p.salesTotal.toLocaleString()}
+                  </span>
+                  <button
+                    onClick={() => toggleProjectActive(p)}
+                    className="text-xs text-blue-600 underline"
+                  >
+                    {p.isActive ? "Archive" : "Reactivate"}
+                  </button>
+                </div>
+              </div>
+            ))}
+            {data.untaggedSalesTotal > 0 && (
+              <div className="flex justify-between items-center border rounded-xl p-3 text-sm bg-slate-50">
+                <span className="text-slate-500">Not tagged to a project</span>
+                <span className="font-semibold">
+                  UGX {data.untaggedSalesTotal.toLocaleString()}
+                </span>
+              </div>
+            )}
           </div>
-        </div>
-      ))}
-      {data.untaggedSalesTotal > 0 && (
-        <div className="flex justify-between items-center border rounded-xl p-3 text-sm bg-slate-50">
-          <span className="text-slate-500">Not tagged to a project</span>
-          <span className="font-semibold">UGX {data.untaggedSalesTotal.toLocaleString()}</span>
-        </div>
-      )}
-    </div>
-  )}
-</div>
+        )}
+      </div>
 
       <div className="bg-white rounded-3xl shadow p-8">
         <h2 className="text-lg font-bold mb-4">Credit Sales</h2>
@@ -315,7 +354,10 @@ const toggleProjectActive = async (project) => {
         ) : (
           <div className="space-y-3">
             {creditSales.map((s) => (
-              <div key={s.id} className="border rounded-2xl p-4 flex justify-between items-center">
+              <div
+                key={s.id}
+                className="border rounded-2xl p-4 flex justify-between items-center"
+              >
                 <div>
                   <span
                     className={`px-3 py-1 rounded-full text-xs font-semibold ${
@@ -327,10 +369,13 @@ const toggleProjectActive = async (project) => {
                     {s.status}
                   </span>
                   <p className="text-sm text-slate-500 mt-1">
-                    {new Date(s.createdAt).toLocaleDateString()} · {s.saleItems.length} item(s)
+                    {new Date(s.createdAt).toLocaleDateString()} ·{" "}
+                    {s.saleItems.length} item(s)
                   </p>
                 </div>
-                <p className="font-bold">UGX {Number(s.totalAmount).toLocaleString()}</p>
+                <p className="font-bold">
+                  UGX {Number(s.totalAmount).toLocaleString()}
+                </p>
               </div>
             ))}
           </div>

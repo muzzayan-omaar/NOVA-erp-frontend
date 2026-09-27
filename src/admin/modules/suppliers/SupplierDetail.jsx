@@ -16,6 +16,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import NewPurchaseOrderModal from "./NewPurchaseOrderModal";
+import { useConfirm } from "../../../components/ui/ConfirmProvider";
 
 const STATUS_STYLES = {
   DRAFT: "bg-slate-100 text-slate-600",
@@ -27,6 +28,7 @@ const STATUS_STYLES = {
 export default function SupplierDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { confirm } = useConfirm();
 
   const [data, setData] = useState(null);
   const [orders, setOrders] = useState([]);
@@ -44,26 +46,27 @@ export default function SupplierDetail() {
   const [receivingExtraCostNotes, setReceivingExtraCostNotes] = useState("");
 
   const fetchAll = async () => {
-  try {
-    setLoading(true);
-    const [detailRes, ordersRes, reliabilityRes] = await Promise.all([
-      api.get(`/suppliers/${id}/detail`),
-      api.get("/purchase-orders", { params: { supplierId: id } }),
-      api.get(`/suppliers/${id}/reliability`),
-    ]);
-    setData(detailRes.data);
-    setOrders(ordersRes.data);
-    setReliability(reliabilityRes.data);
-  } catch (err) {
-    console.error(err);
-    toast.error("Failed to load supplier");
-  } finally {
-    setLoading(false);
-  }
-};
+    try {
+      setLoading(true);
+      const [detailRes, ordersRes, reliabilityRes] = await Promise.all([
+        api.get(`/suppliers/${id}/detail`),
+        api.get("/purchase-orders", { params: { supplierId: id } }),
+        api.get(`/suppliers/${id}/reliability`),
+      ]);
+      setData(detailRes.data);
+      setOrders(ordersRes.data);
+      setReliability(reliabilityRes.data);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to load supplier");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const handleSend = async (orderId) => {
@@ -81,7 +84,16 @@ export default function SupplierDetail() {
   };
 
   const handleCancel = async (orderId) => {
-    if (!window.confirm("Cancel this purchase order?")) return;
+    const ok = await confirm({
+      title: "Cancel this purchase order?",
+      message:
+        "The supplier won't be notified automatically — let them know separately if you already sent it.",
+      confirmText: "Cancel Order",
+      cancelText: "Keep It",
+      variant: "danger",
+    });
+    if (!ok) return;
+
     try {
       await api.post(`/purchase-orders/cancel/${orderId}`);
       toast.success("Order cancelled");
@@ -92,60 +104,60 @@ export default function SupplierDetail() {
   };
 
   const startReceiving = (order) => {
-  setReceivingOrderId(order.id);
-  setReceivingExtraCost("");
-  setReceivingExtraCostNotes("");
-  const defaults = {};
-  order.items.forEach((i) => {
-    defaults[i.id] = i.quantityOrdered;
-  });
-  setReceiveQuantities(defaults);
-};
+    setReceivingOrderId(order.id);
+    setReceivingExtraCost("");
+    setReceivingExtraCostNotes("");
+    const defaults = {};
+    order.items.forEach((i) => {
+      defaults[i.id] = i.quantityOrdered;
+    });
+    setReceiveQuantities(defaults);
+  };
 
   const confirmReceive = async (orderId) => {
-  try {
-    const items = Object.entries(receiveQuantities).map(([itemId, quantityReceived]) => ({
-      itemId,
-      quantityReceived: Number(quantityReceived),
-    }));
-    await api.post(`/purchase-orders/${orderId}/receive`, {
-      items,
-      additionalCosts: Number(receivingExtraCost) || 0,
-      additionalCostsNotes: receivingExtraCostNotes,
-    });
-    toast.success("Stock received, cost updated");
-    setReceivingOrderId(null);
-    fetchAll();
-  } catch (err) {
-    toast.error(err?.response?.data?.message || "Failed to receive order");
-  }
-};
+    try {
+      const items = Object.entries(receiveQuantities).map(([itemId, quantityReceived]) => ({
+        itemId,
+        quantityReceived: Number(quantityReceived),
+      }));
+      await api.post(`/purchase-orders/${orderId}/receive`, {
+        items,
+        additionalCosts: Number(receivingExtraCost) || 0,
+        additionalCostsNotes: receivingExtraCostNotes,
+      });
+      toast.success("Stock received, cost updated");
+      setReceivingOrderId(null);
+      fetchAll();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to receive order");
+    }
+  };
 
   const handlePayment = async (e) => {
-  e.preventDefault();
-  if (!paymentAmount || Number(paymentAmount) <= 0) {
-    toast.error("Enter a valid amount");
-    return;
-  }
-  try {
-    setSubmittingPayment(true);
-    await api.post(`/suppliers/${id}/pay`, {
-      amount: Number(paymentAmount),
-      method: paymentMethod,
-      notes: paymentNotes,
-    });
-    toast.success("Payment recorded");
-    setShowPayment(false);
-    setPaymentAmount("");
-    setPaymentNotes("");
-    setPaymentMethod("CASH");
-    fetchAll();
-  } catch (err) {
-    toast.error(err?.response?.data?.message || "Failed to record payment");
-  } finally {
-    setSubmittingPayment(false);
-  }
-};
+    e.preventDefault();
+    if (!paymentAmount || Number(paymentAmount) <= 0) {
+      toast.error("Enter a valid amount");
+      return;
+    }
+    try {
+      setSubmittingPayment(true);
+      await api.post(`/suppliers/${id}/pay`, {
+        amount: Number(paymentAmount),
+        method: paymentMethod,
+        notes: paymentNotes,
+      });
+      toast.success("Payment recorded");
+      setShowPayment(false);
+      setPaymentAmount("");
+      setPaymentNotes("");
+      setPaymentMethod("CASH");
+      fetchAll();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to record payment");
+    } finally {
+      setSubmittingPayment(false);
+    }
+  };
 
   if (loading) return <p className="text-center py-20">Loading...</p>;
   if (!data) return <p className="text-center py-20">Supplier not found</p>;
@@ -214,71 +226,94 @@ export default function SupplierDetail() {
         <div className="bg-white rounded-3xl shadow p-5">
           <p className="text-xs text-slate-500">Last Order</p>
           <p className="text-lg font-bold">
-            {analytics.lastOrderDate ? new Date(analytics.lastOrderDate).toLocaleDateString() : "—"}
+            {analytics.lastOrderDate
+              ? new Date(analytics.lastOrderDate).toLocaleDateString()
+              : "—"}
           </p>
         </div>
       </div>
 
       {reliability && reliability.orderCount > 0 && (
-  <div className="bg-white rounded-3xl shadow p-8">
-    <h2 className="text-lg font-bold mb-1 flex items-center gap-2">
-      <Star size={20} /> Supplier Reliability
-    </h2>
-    <p className="text-xs text-slate-400 mb-6">
-      Based on {reliability.orderCount} received order(s) — the more history, the more this means.
-    </p>
+        <div className="bg-white rounded-3xl shadow p-8">
+          <h2 className="text-lg font-bold mb-1 flex items-center gap-2">
+            <Star size={20} /> Supplier Reliability
+          </h2>
+          <p className="text-xs text-slate-400 mb-6">
+            Based on {reliability.orderCount} received order(s) — the more history, the more
+            this means.
+          </p>
 
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-      <div className="bg-slate-50 rounded-2xl p-5 text-center">
-        <p className="text-3xl font-bold">
-          {reliability.reliabilityScore !== null ? reliability.reliabilityScore : "—"}
-        </p>
-        <p className="text-xs text-slate-500 mt-1">Reliability Score</p>
-      </div>
-      <div className="bg-slate-50 rounded-2xl p-5 text-center">
-        <p className="text-3xl font-bold">
-          {reliability.fulfillmentRate !== null ? `${reliability.fulfillmentRate}%` : "—"}
-        </p>
-        <p className="text-xs text-slate-500 mt-1">Fulfillment Rate</p>
-      </div>
-      <div className="bg-slate-50 rounded-2xl p-5 text-center">
-        <p className="text-3xl font-bold">
-          {reliability.avgLeadTimeDays !== null ? `${reliability.avgLeadTimeDays}d` : "—"}
-        </p>
-        <p className="text-xs text-slate-500 mt-1">Avg Lead Time</p>
-      </div>
-      <div className="bg-slate-50 rounded-2xl p-5 text-center">
-        <p className="text-3xl font-bold">
-          {reliability.onTimeRate !== null ? `${reliability.onTimeRate}%` : "No data"}
-        </p>
-        <p className="text-xs text-slate-500 mt-1">
-          On-Time Rate {reliability.onTimeSampleSize > 0 ? `(${reliability.onTimeSampleSize} orders)` : ""}
-        </p>
-      </div>
-    </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div className="bg-slate-50 rounded-2xl p-5 text-center">
+              <p className="text-3xl font-bold">
+                {reliability.reliabilityScore !== null ? reliability.reliabilityScore : "—"}
+              </p>
+              <p className="text-xs text-slate-500 mt-1">Reliability Score</p>
+            </div>
+            <div className="bg-slate-50 rounded-2xl p-5 text-center">
+              <p className="text-3xl font-bold">
+                {reliability.fulfillmentRate !== null
+                  ? `${reliability.fulfillmentRate}%`
+                  : "—"}
+              </p>
+              <p className="text-xs text-slate-500 mt-1">Fulfillment Rate</p>
+            </div>
+            <div className="bg-slate-50 rounded-2xl p-5 text-center">
+              <p className="text-3xl font-bold">
+                {reliability.avgLeadTimeDays !== null
+                  ? `${reliability.avgLeadTimeDays}d`
+                  : "—"}
+              </p>
+              <p className="text-xs text-slate-500 mt-1">Avg Lead Time</p>
+            </div>
+            <div className="bg-slate-50 rounded-2xl p-5 text-center">
+              <p className="text-3xl font-bold">
+                {reliability.onTimeRate !== null
+                  ? `${reliability.onTimeRate}%`
+                  : "No data"}
+              </p>
+              <p className="text-xs text-slate-500 mt-1">
+                On-Time Rate{" "}
+                {reliability.onTimeSampleSize > 0
+                  ? `(${reliability.onTimeSampleSize} orders)`
+                  : ""}
+              </p>
+            </div>
+          </div>
 
-    <p className="text-xs text-slate-400 mb-4 flex items-center gap-2">
-      <TrendingUp size={14} /> Score based on: {reliability.scoreBasis}
-    </p>
+          <p className="text-xs text-slate-400 mb-4 flex items-center gap-2">
+            <TrendingUp size={14} /> Score based on: {reliability.scoreBasis}
+          </p>
 
-    <div className="space-y-2">
-      {reliability.recentOrders.map((o) => (
-        <div key={o.id} className="flex justify-between items-center text-sm border-b py-2">
-          <span className="text-slate-500 flex items-center gap-1">
-            <Clock size={12} /> {new Date(o.receivedAt).toLocaleDateString()}
-          </span>
-          <span>{o.receivedQty}/{o.orderedQty} received ({o.fulfilled}%)</span>
-          <span>{o.leadDays !== null ? `${o.leadDays}d lead time` : "—"}</span>
-          {o.onTime !== null && (
-            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${o.onTime ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"}`}>
-              {o.onTime ? "On Time" : "Late"}
-            </span>
-          )}
+          <div className="space-y-2">
+            {reliability.recentOrders.map((o) => (
+              <div
+                key={o.id}
+                className="flex justify-between items-center text-sm border-b py-2"
+              >
+                <span className="text-slate-500 flex items-center gap-1">
+                  <Clock size={12} /> {new Date(o.receivedAt).toLocaleDateString()}
+                </span>
+                <span>
+                  {o.receivedQty}/{o.orderedQty} received ({o.fulfilled}%)
+                </span>
+                <span>{o.leadDays !== null ? `${o.leadDays}d lead time` : "—"}</span>
+                {o.onTime !== null && (
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                      o.onTime
+                        ? "bg-green-100 text-green-600"
+                        : "bg-red-100 text-red-600"
+                    }`}
+                  >
+                    {o.onTime ? "On Time" : "Late"}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
-      ))}
-    </div>
-  </div>
-)}
+      )}
 
       <div className="bg-white rounded-3xl shadow p-8">
         <h2 className="text-lg font-bold mb-4">Purchase Orders</h2>
@@ -291,11 +326,16 @@ export default function SupplierDetail() {
               <div key={o.id} className="border rounded-2xl p-5">
                 <div className="flex justify-between items-start">
                   <div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${STATUS_STYLES[o.status]}`}>
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                        STATUS_STYLES[o.status]
+                      }`}
+                    >
                       {o.status}
                     </span>
                     <p className="text-sm text-slate-500 mt-2">
-                      {new Date(o.createdAt).toLocaleDateString()} · {o.items.length} item(s)
+                      {new Date(o.createdAt).toLocaleDateString()} · {o.items.length}{" "}
+                      item(s)
                     </p>
                   </div>
                   <p className="text-lg font-bold">UGX {o.total.toLocaleString()}</p>
@@ -303,52 +343,72 @@ export default function SupplierDetail() {
 
                 <div className="mt-3 space-y-1">
                   {o.items.map((i) => (
-  <div key={i.id} className="flex justify-between text-sm text-slate-600">
-    <span>{i.product?.name} × {i.quantityOrdered} {i.productUnit?.unitName || i.product?.unitType || ""}</span>
-    <span>UGX {(i.quantityOrdered * i.unitCost).toLocaleString()}</span>
-  </div>
-))}
+                    <div
+                      key={i.id}
+                      className="flex justify-between text-sm text-slate-600"
+                    >
+                      <span>
+                        {i.product?.name} × {i.quantityOrdered}{" "}
+                        {i.productUnit?.unitName || i.product?.unitType || ""}
+                      </span>
+                      <span>
+                        UGX {(i.quantityOrdered * i.unitCost).toLocaleString()}
+                      </span>
+                    </div>
+                  ))}
                 </div>
 
                 {receivingOrderId === o.id ? (
                   <div className="mt-4 border-t pt-4 space-y-3">
                     <p className="text-sm font-semibold">Confirm quantities received</p>
                     {o.items.map((i) => (
-  <div key={i.id} className="flex items-center gap-3">
-    <span className="text-sm flex-1">
-      {i.product?.name} <span className="text-slate-400">({i.productUnit?.unitName || i.product?.unitType || "base unit"})</span>
-    </span>
-    <input
-      type="number"
-      className="w-24 p-2 border rounded-lg text-sm"
-      value={receiveQuantities[i.id] ?? i.quantityOrdered}
-      onChange={(e) =>
-        setReceiveQuantities({ ...receiveQuantities, [i.id]: e.target.value })
-      }
-    />
-  </div>
-))}
+                      <div key={i.id} className="flex items-center gap-3">
+                        <span className="text-sm flex-1">
+                          {i.product?.name}{" "}
+                          <span className="text-slate-400">
+                            (
+                            {i.productUnit?.unitName ||
+                              i.product?.unitType ||
+                              "base unit"}
+                            )
+                          </span>
+                        </span>
+                        <input
+                          type="number"
+                          className="w-24 p-2 border rounded-lg text-sm"
+                          value={receiveQuantities[i.id] ?? i.quantityOrdered}
+                          onChange={(e) =>
+                            setReceiveQuantities({
+                              ...receiveQuantities,
+                              [i.id]: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
+                    ))}
                     <div className="grid grid-cols-2 gap-3">
-  <div>
-    <label className="text-xs text-slate-500">Freight / Transport Cost (optional)</label>
-    <input
-      type="number"
-      className="w-full p-2 border rounded-lg text-sm mt-1"
-      placeholder="e.g. transport fee"
-      value={receivingExtraCost}
-      onChange={(e) => setReceivingExtraCost(e.target.value)}
-    />
-  </div>
-  <div>
-    <label className="text-xs text-slate-500">Note</label>
-    <input
-      className="w-full p-2 border rounded-lg text-sm mt-1"
-      placeholder="e.g. truck hire to Mukono branch"
-      value={receivingExtraCostNotes}
-      onChange={(e) => setReceivingExtraCostNotes(e.target.value)}
-    />
-  </div>
-</div>
+                      <div>
+                        <label className="text-xs text-slate-500">
+                          Freight / Transport Cost (optional)
+                        </label>
+                        <input
+                          type="number"
+                          className="w-full p-2 border rounded-lg text-sm mt-1"
+                          placeholder="e.g. transport fee"
+                          value={receivingExtraCost}
+                          onChange={(e) => setReceivingExtraCost(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-slate-500">Note</label>
+                        <input
+                          className="w-full p-2 border rounded-lg text-sm mt-1"
+                          placeholder="e.g. truck hire to Mukono branch"
+                          value={receivingExtraCostNotes}
+                          onChange={(e) => setReceivingExtraCostNotes(e.target.value)}
+                        />
+                      </div>
+                    </div>
                     <div className="flex gap-3">
                       <button
                         onClick={() => confirmReceive(o.id)}
@@ -372,7 +432,8 @@ export default function SupplierDetail() {
                           onClick={() => handleSend(o.id)}
                           className="flex items-center gap-2 text-sm font-medium text-blue-600 px-4 py-2 rounded-xl border border-blue-200 hover:bg-blue-50"
                         >
-                          <Send size={14} /> {supplier.email ? "Email Order" : "Mark as Sent"}
+                          <Send size={14} />{" "}
+                          {supplier.email ? "Email Order" : "Mark as Sent"}
                         </button>
                         <button
                           onClick={() => handleCancel(o.id)}
@@ -407,7 +468,9 @@ export default function SupplierDetail() {
             {payments.map((p) => (
               <div key={p.id} className="flex justify-between text-sm border-b py-3">
                 <span>{p.description}</span>
-                <span className="font-semibold">UGX {Number(p.amount).toLocaleString()}</span>
+                <span className="font-semibold">
+                  UGX {Number(p.amount).toLocaleString()}
+                </span>
               </div>
             ))}
           </div>
@@ -423,57 +486,57 @@ export default function SupplierDetail() {
       )}
 
       {showPayment && (
-  <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-    <div className="bg-white p-8 rounded-3xl w-full max-w-md space-y-4">
-      <h2 className="text-xl font-bold flex items-center gap-2">
-        <DollarSign /> Record Payment
-      </h2>
-      <p className="text-sm text-slate-500">
-        Currently owed: UGX {Number(analytics.currentlyOwed).toLocaleString()}
-      </p>
-      <form onSubmit={handlePayment} className="space-y-4">
-        <input
-          type="number"
-          placeholder="Amount paid"
-          className="w-full p-4 border rounded-2xl"
-          value={paymentAmount}
-          onChange={(e) => setPaymentAmount(e.target.value)}
-        />
-        <select
-          className="w-full p-4 border rounded-2xl"
-          value={paymentMethod}
-          onChange={(e) => setPaymentMethod(e.target.value)}
-        >
-          <option value="CASH">Cash</option>
-          <option value="MOBILE_MONEY">Mobile Money</option>
-          <option value="BANK_TRANSFER">Bank Transfer</option>
-        </select>
-        <input
-          placeholder="Notes (optional)"
-          className="w-full p-4 border rounded-2xl"
-          value={paymentNotes}
-          onChange={(e) => setPaymentNotes(e.target.value)}
-        />
-        <div className="flex gap-3">
-          <button
-            type="submit"
-            disabled={submittingPayment}
-            className="flex-1 bg-green-600 text-white py-4 rounded-2xl font-semibold disabled:opacity-50"
-          >
-            {submittingPayment ? "Saving..." : "Record Payment"}
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowPayment(false)}
-            className="flex-1 bg-slate-200 py-4 rounded-2xl font-semibold"
-          >
-            Cancel
-          </button>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white p-8 rounded-3xl w-full max-w-md space-y-4">
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <DollarSign /> Record Payment
+            </h2>
+            <p className="text-sm text-slate-500">
+              Currently owed: UGX {Number(analytics.currentlyOwed).toLocaleString()}
+            </p>
+            <form onSubmit={handlePayment} className="space-y-4">
+              <input
+                type="number"
+                placeholder="Amount paid"
+                className="w-full p-4 border rounded-2xl"
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
+              />
+              <select
+                className="w-full p-4 border rounded-2xl"
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+              >
+                <option value="CASH">Cash</option>
+                <option value="MOBILE_MONEY">Mobile Money</option>
+                <option value="BANK_TRANSFER">Bank Transfer</option>
+              </select>
+              <input
+                placeholder="Notes (optional)"
+                className="w-full p-4 border rounded-2xl"
+                value={paymentNotes}
+                onChange={(e) => setPaymentNotes(e.target.value)}
+              />
+              <div className="flex gap-3">
+                <button
+                  type="submit"
+                  disabled={submittingPayment}
+                  className="flex-1 bg-green-600 text-white py-4 rounded-2xl font-semibold disabled:opacity-50"
+                >
+                  {submittingPayment ? "Saving..." : "Record Payment"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowPayment(false)}
+                  className="flex-1 bg-slate-200 py-4 rounded-2xl font-semibold"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
-      </form>
-    </div>
-  </div>
-)}
+      )}
     </div>
   );
 }

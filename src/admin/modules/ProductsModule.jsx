@@ -3,11 +3,12 @@ import api from "../../services/api";
 import { Plus, Edit2, Trash2, Package, AlertTriangle } from "lucide-react";
 import toast from "react-hot-toast";
 import ManageUnitsSerialsModal from "./products/ManageUnitsSerialsModal";
-
 import useAuthStore from "../../store/useAuthStore";
+import { useConfirm } from "../../components/ui/ConfirmProvider";
 
 export default function ProductsModule() {
   const { user } = useAuthStore();
+  const { confirm } = useConfirm();
 
   const [products, setProducts] = useState([]);
   const [lowStock, setLowStock] = useState([]);
@@ -79,7 +80,15 @@ export default function ProductsModule() {
   };
 
   const deleteProduct = async (id) => {
-    if (!window.confirm("Delete this product?")) return;
+    const ok = await confirm({
+      title: "Delete this product?",
+      message:
+        "This removes it permanently, including its units and serial numbers if any exist.",
+      confirmText: "Delete Product",
+      variant: "danger",
+    });
+    if (!ok) return;
+
     try {
       await api.delete(`/products/${id}`);
       toast.success("Product deleted");

@@ -8,6 +8,8 @@ import ReceiptModal from "../components/pos/ReceiptModal";
 import BarcodeScanner from "../components/pos/BarcodeScanner";
 import SerialPickerModal from "../components/pos/SerialPickerModal";
 import UnitPickerModal from "../components/pos/UnitPickerModal";
+import ProcessingOverlay from "../components/ui/ProcessingOverlay";
+import { useConfirm } from "../components/ui/ConfirmProvider";
 import useOfflineSalesSync from "../hooks/useOfflineSalesSync";
 import { addToQueue } from "../utils/offlineQueue";
 import { hasPermission } from "../utils/hasPermission";
@@ -32,17 +34,14 @@ export default function POS() {
   const [splitLines, setSplitLines] = useState([]);
   const [splitDraft, setSplitDraft] = useState({ method: "CASH", amount: "", reference: "" });
 
-  // Multi-UOM / serial picker state
   const [pickerProduct, setPickerProduct] = useState(null);
-  const [pickerType, setPickerType] = useState(null); // "unit" | "serial" | null
-  // Same-session guard: once a serial is used (in cart OR already queued
-  // offline), it isn't offered again until the app reloads/syncs — this
-  // protects a single device, not multiple devices offline simultaneously.
+  const [pickerType, setPickerType] = useState(null);
   const [reservedSerialIds, setReservedSerialIds] = useState([]);
 
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
   const { isOnline, pendingCount, failedCount, syncNow } = useOfflineSalesSync();
+  const { alert } = useConfirm();
 
   useEffect(() => {
     fetchProducts();
@@ -77,8 +76,6 @@ export default function POS() {
     return () => window.removeEventListener("keydown", handleKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cart, splitMode, splitLines, paymentMethod, selectedCustomerId]);
-
-  /* ---------- Adding to cart: base unit, chosen unit, or a specific serial ---------- */
 
   const handleProductClick = (product) => {
     if (product.isSerialized) {
@@ -263,7 +260,6 @@ export default function POS() {
       if (!err.response) {
         addToQueue({ clientReferenceId, payload });
 
-        // Optimistic local stock adjustment, in real base-unit terms
         setProducts((prev) =>
           prev.map((p) => {
             const cartLinesForProduct = cart.filter((c) => c.productId === p.id);
@@ -276,8 +272,6 @@ export default function POS() {
           })
         );
 
-        // Serials used in a queued offline sale stay reserved for this
-        // device until sync — see the note at the top of this file.
         cart.forEach((c) => {
           if (c.productSerialId) {
             setReservedSerialIds((prev) => (prev.includes(c.productSerialId) ? prev : [...prev, c.productSerialId]));
@@ -319,7 +313,11 @@ export default function POS() {
 
       if (type === "SERIAL") {
         if (reservedSerialIds.includes(serial.id) || cart.some((c) => c.productSerialId === serial.id)) {
-          toast.error("That serial is already in your cart");
+          await alert({
+            title: "Already in your cart",
+            message: `This exact unit (SN: ${serial.serialNumber}) is already part of this sale. Scan a different one if you meant to add another.`,
+            variant: "info",
+          });
           return;
         }
         addSerialLine({
@@ -352,7 +350,13 @@ export default function POS() {
         addSimpleBaseUnit(product);
       }
     } catch (err) {
-      toast.error(err?.response?.data?.message || "Product not found for this code");
+      await alert({
+        title: "Item not recognized",
+        message:
+          err?.response?.data?.message ||
+          "This code doesn't match any product, unit, or serial number in your system.",
+        variant: "blocked",
+      });
     }
   };
 
@@ -365,14 +369,15 @@ export default function POS() {
   return (
     <div className="h-screen bg-slate-100 flex flex-col overflow-hidden">
       {/* Top Bar */}
-      <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
-        
+      <div className="bg-nova-950 text-white px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="bg-blue-600 p-3 rounded-xl">
+          <div className="bg-nova-gradient p-3 rounded-xl">
             <ShoppingCart size={28} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">Nova POS</h1>
+            <h1 className="text-2xl font-bold">
+              NOVA <span className="text-nova-cyan">POS</span>
+            </h1>
             <p className="text-slate-400 text-sm">{user?.store?.name || "Demo Store"}</p>
           </div>
         </div>
@@ -386,7 +391,7 @@ export default function POS() {
           {hasPermission(user?.role, "dashboard") && (
             <button
               onClick={() => navigate("/admin")}
-              className="bg-slate-700 hover:bg-slate-600 px-5 py-2 rounded-lg text-sm flex items-center gap-2"
+              className="bg-white/10 hover:bg-white/15 px-5 py-2 rounded-lg text-sm flex items-center gap-2 transition"
             >
               <LayoutDashboard size={18} /> Admin
             </button>
@@ -394,7 +399,7 @@ export default function POS() {
 
           <button
             onClick={() => { logout(); navigate("/login"); }}
-            className="bg-red-600 hover:bg-red-700 px-5 py-2 rounded-lg text-sm flex items-center gap-2"
+            className="bg-red-600/90 hover:bg-red-600 px-5 py-2 rounded-lg text-sm flex items-center gap-2 transition"
           >
             <LogOut size={18} /> Logout
           </button>
@@ -408,7 +413,7 @@ export default function POS() {
         </div>
       </div>
 
-      {/* Offline / Sync Status Bar */}
+      {/* Offline / Sync Status Bar — kept amber, a status signal shouldn't wear brand colors */}
       {(!isOnline || pendingCount > 0 || failedCount > 0) && (
         <div className="bg-amber-50 border-b border-amber-200 px-6 py-2 flex items-center justify-between text-sm">
           <div className="flex items-center gap-4">
@@ -439,7 +444,7 @@ export default function POS() {
 
       <div className="flex flex-1 overflow-hidden p-6 gap-6">
         {/* Products Section */}
-        <div className="flex-1 flex flex-col bg-white rounded-3xl shadow">
+        <div className="flex-1 flex flex-col bg-white rounded-3xl shadow-nova">
           <div className="p-6 border-b">
             <div className="flex gap-4">
               <div className="flex-1 relative">
@@ -447,14 +452,14 @@ export default function POS() {
                 <input
                   type="text"
                   placeholder="Search product or scan barcode..."
-                  className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-blue-500 text-lg"
+                  className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-nova-blue text-lg transition"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
               <button
                 onClick={() => setShowScanner(true)}
-                className="bg-blue-600 text-white px-6 py-4 rounded-2xl flex items-center gap-2 hover:bg-blue-700 whitespace-nowrap"
+                className="bg-nova-gradient text-white px-6 py-4 rounded-2xl flex items-center gap-2 hover:opacity-90 transition whitespace-nowrap"
               >
                 Scan Barcode
               </button>
@@ -467,18 +472,18 @@ export default function POS() {
                 <div
                   key={product.id}
                   onClick={() => handleProductClick(product)}
-                  className="bg-white border border-slate-200 hover:border-blue-500 hover:shadow-xl p-5 rounded-2xl cursor-pointer transition-all active:scale-95"
+                  className="bg-white border border-slate-200 hover:border-nova-blue hover:shadow-nova p-5 rounded-2xl cursor-pointer transition-all active:scale-95"
                 >
                   <div className="font-semibold text-lg leading-tight mb-2 flex items-center gap-2">
                     {product.name}
-                    {product.isSerialized && <Hash size={14} className="text-blue-500" />}
+                    {product.isSerialized && <Hash size={14} className="text-nova-blue" />}
                   </div>
-                  <div className="text-2xl font-bold text-blue-600">
+                  <div className="text-2xl font-bold text-nova-blue">
                     UGX {product.sellingPrice.toLocaleString()}
                   </div>
                   <div className="text-sm text-slate-500 mt-2">
                     Stock: {product.stockQuantity} {product.unitType || ""}
-                    {product.hasUnits && <span className="text-blue-500 ml-1">· multiple units</span>}
+                    {product.hasUnits && <span className="text-nova-blue ml-1">· multiple units</span>}
                   </div>
                 </div>
               ))}
@@ -487,9 +492,9 @@ export default function POS() {
         </div>
 
         {/* Cart Sidebar */}
-        <div className="w-96 bg-white rounded-3xl shadow flex flex-col">
+        <div className="w-96 bg-white rounded-3xl shadow-nova flex flex-col">
           <div className="p-6 border-b">
-            <h2 className="text-2xl font-bold flex items-center gap-3">
+            <h2 className="text-2xl font-bold flex items-center gap-3 text-nova-900">
               <ShoppingCart /> Cart
             </h2>
           </div>
@@ -510,7 +515,7 @@ export default function POS() {
                         {item.unitLabel} — UGX {item.unitPrice.toLocaleString()}
                       </p>
                       {item.serialNumber && (
-                        <p className="text-xs text-blue-600 font-mono mt-1">SN: {item.serialNumber}</p>
+                        <p className="text-xs text-nova-blue font-mono mt-1">SN: {item.serialNumber}</p>
                       )}
                     </div>
                     <button onClick={() => removeFromCart(item.cartLineId)} className="text-red-500">
@@ -542,23 +547,22 @@ export default function POS() {
                 <span>VAT Included (18%)</span>
                 <span>UGX {(total * 0.18).toLocaleString()}</span>
               </div>
-              <div className="flex justify-between text-2xl font-bold mt-2">
+              <div className="flex justify-between text-2xl font-bold mt-2 text-nova-900">
                 <span>Total Due</span>
                 <span>UGX {total.toLocaleString()}</span>
               </div>
             </div>
 
-            {/* Mode toggle */}
             <div className="flex gap-2 mb-4">
               <button
                 onClick={() => splitMode && toggleSplitMode()}
-                className={`flex-1 py-2 rounded-xl text-sm font-medium ${!splitMode ? "bg-slate-900 text-white" : "bg-slate-200 text-slate-600"}`}
+                className={`flex-1 py-2 rounded-xl text-sm font-medium transition ${!splitMode ? "bg-nova-900 text-white" : "bg-slate-200 text-slate-600"}`}
               >
                 Single Payment
               </button>
               <button
                 onClick={() => !splitMode && toggleSplitMode()}
-                className={`flex-1 py-2 rounded-xl text-sm font-medium ${splitMode ? "bg-slate-900 text-white" : "bg-slate-200 text-slate-600"}`}
+                className={`flex-1 py-2 rounded-xl text-sm font-medium transition ${splitMode ? "bg-nova-900 text-white" : "bg-slate-200 text-slate-600"}`}
               >
                 Split Payment
               </button>
@@ -575,7 +579,7 @@ export default function POS() {
                         onClick={() => setPaymentMethod(method)}
                         className={`py-3 rounded-2xl text-sm font-medium transition ${
                           paymentMethod === method
-                            ? "bg-blue-600 text-white"
+                            ? "bg-nova-gradient text-white"
                             : "bg-slate-100 hover:bg-slate-200"
                         }`}
                       >
@@ -640,7 +644,7 @@ export default function POS() {
                     value={splitDraft.amount}
                     onChange={(e) => setSplitDraft({ ...splitDraft, amount: e.target.value })}
                   />
-                  <button onClick={addSplitLine} className="bg-slate-900 text-white px-3 rounded-xl">
+                  <button onClick={addSplitLine} className="bg-nova-900 text-white px-3 rounded-xl">
                     <Plus size={18} />
                   </button>
                 </div>
@@ -719,6 +723,8 @@ export default function POS() {
           onAdd={addSerialLine}
         />
       )}
+
+      {checkoutLoading && <ProcessingOverlay message="Completing your sale..." />}
     </div>
   );
 }

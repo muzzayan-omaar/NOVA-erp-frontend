@@ -2,14 +2,24 @@ import { useEffect, useState } from "react";
 import platformApi from "../../services/platformApi";
 import toast from "react-hot-toast";
 import { Megaphone } from "lucide-react";
+import { useConfirm } from "../../components/ui/ConfirmProvider";
 
 export default function PlatformBroadcastPage() {
+  const { confirm } = useConfirm();
   const [companies, setCompanies] = useState([]);
-  const [form, setForm] = useState({ title: "", message: "", priority: "MEDIUM", companyId: "" });
+  const [form, setForm] = useState({
+    title: "",
+    message: "",
+    priority: "MEDIUM",
+    companyId: "",
+  });
   const [sending, setSending] = useState(false);
 
   useEffect(() => {
-    platformApi.get("/platform/companies").then((res) => setCompanies(res.data)).catch(() => {});
+    platformApi
+      .get("/platform/companies")
+      .then((res) => setCompanies(res.data))
+      .catch(() => {});
   }, []);
 
   const handleSubmit = async (e) => {
@@ -20,10 +30,17 @@ export default function PlatformBroadcastPage() {
       return;
     }
 
-    const confirmMsg = form.companyId
-      ? "Send this to the selected company's GM only?"
-      : "Send this to EVERY company's GM on the platform?";
-    if (!window.confirm(confirmMsg)) return;
+    const ok = await confirm({
+      title: form.companyId
+        ? "Send to this company's GM?"
+        : "Send to every company on the platform?",
+      message: form.companyId
+        ? "This notifies the selected company's General Manager only."
+        : "This notifies every active company's General Manager, platform-wide. There's no undo once it's sent.",
+      confirmText: "Send Broadcast",
+      variant: form.companyId ? "info" : "danger",
+    });
+    if (!ok) return;
 
     try {
       setSending(true);
@@ -56,7 +73,9 @@ export default function PlatformBroadcastPage() {
           >
             <option value="">All Companies</option>
             {companies.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
             ))}
           </select>
         </div>

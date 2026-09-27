@@ -5,11 +5,13 @@ import toast from "react-hot-toast";
 import { ArrowLeft, Building2, ShieldOff, ShieldCheck } from "lucide-react";
 import useAuthStore from "../../store/useAuthStore";
 import AddBundleModal from "./AddBundleModal";
+import { useConfirm } from "../../components/ui/ConfirmProvider";
 
 export default function CompanyDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const setTenantAuth = useAuthStore((s) => s.setAuth);
+  const { confirm } = useConfirm();
 
   const [company, setCompany] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -33,15 +35,21 @@ export default function CompanyDetailPage() {
 
   useEffect(() => {
     fetchCompany();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const toggleStatus = async () => {
     const nextActive = !company.isActive;
-    const confirmMsg = nextActive
-      ? "Reactivate this company? Their staff will be able to log in again immediately."
-      : "Suspend this company? Every user there will be locked out immediately, including anyone currently logged in.";
 
-    if (!window.confirm(confirmMsg)) return;
+    const ok = await confirm({
+      title: nextActive ? "Reactivate this company?" : "Suspend this company?",
+      message: nextActive
+        ? "Their staff will be able to log in again immediately."
+        : "Every user there will be locked out immediately, including anyone currently logged in.",
+      confirmText: nextActive ? "Reactivate" : "Suspend",
+      variant: nextActive ? "info" : "danger",
+    });
+    if (!ok) return;
 
     try {
       setUpdating(true);
@@ -58,11 +66,13 @@ export default function CompanyDetailPage() {
   };
 
   const handleInvestigate = async () => {
-    const confirmed = window.confirm(
-      "This opens a new tab logged in as this company's General Manager, for support purposes. " +
-        "This is permanently logged and visible in the Platform Audit Log. " +
-        "If you have a real tenant session open in another tab of this browser, it will be overwritten. Continue?"
-    );
+    const confirmed = await confirm({
+      title: "Investigate as this company's GM?",
+      message:
+        "This opens a new tab logged in as this company's General Manager, for support purposes. This is permanently logged and visible in the Platform Audit Log. If you have a real tenant session open in another tab of this browser, it will be overwritten. Continue?",
+      confirmText: "Start Investigation",
+      variant: "danger",
+    });
     if (!confirmed) return;
 
     try {
@@ -86,7 +96,9 @@ export default function CompanyDetailPage() {
       setEditingCode(false);
       fetchCompany();
     } catch (err) {
-      toast.error(err?.response?.data?.message || "Failed to update business code");
+      toast.error(
+        err?.response?.data?.message || "Failed to update business code"
+      );
     }
   };
 
@@ -195,60 +207,65 @@ export default function CompanyDetailPage() {
       </div>
 
       <div className="bg-white rounded-3xl shadow p-8">
-  <div className="flex justify-between items-center mb-4">
-    <h2 className="text-lg font-bold">Subscription</h2>
-    <button
-      onClick={() => setShowAddBundle(true)}
-      className="text-sm bg-blue-600 text-white px-4 py-2 rounded-xl font-medium"
-    >
-      + Add Bundle
-    </button>
-  </div>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-bold">Subscription</h2>
+          <button
+            onClick={() => setShowAddBundle(true)}
+            className="text-sm bg-blue-600 text-white px-4 py-2 rounded-xl font-medium"
+          >
+            + Add Bundle
+          </button>
+        </div>
 
-  {company.subscription ? (
-    <>
-      <div className="grid grid-cols-3 gap-4 text-sm">
-        <div>
-          <p className="text-slate-500">Package</p>
-          <p className="font-semibold">{company.subscription.package?.name || "—"}</p>
-        </div>
-        <div>
-          <p className="text-slate-500">Status</p>
-          <p className="font-semibold">{company.subscription.status}</p>
-        </div>
-        <div>
-          <p className="text-slate-500">Ends</p>
-          <p className="font-semibold">
-            {new Date(company.subscription.endDate).toLocaleDateString()}
-          </p>
-        </div>
+        {company.subscription ? (
+          <>
+            <div className="grid grid-cols-3 gap-4 text-sm">
+              <div>
+                <p className="text-slate-500">Package</p>
+                <p className="font-semibold">
+                  {company.subscription.package?.name || "—"}
+                </p>
+              </div>
+              <div>
+                <p className="text-slate-500">Status</p>
+                <p className="font-semibold">{company.subscription.status}</p>
+              </div>
+              <div>
+                <p className="text-slate-500">Ends</p>
+                <p className="font-semibold">
+                  {new Date(company.subscription.endDate).toLocaleDateString()}
+                </p>
+              </div>
+            </div>
+
+            {company.bundles?.length > 0 && (
+              <div className="mt-4 pt-4 border-t">
+                <p className="text-xs text-slate-500 mb-2">Extra bundles added</p>
+                <div className="flex flex-wrap gap-2">
+                  {company.bundles.map((cb) => (
+                    <span
+                      key={cb.id}
+                      className="text-xs bg-blue-50 text-blue-600 px-3 py-2 rounded-xl"
+                    >
+                      {cb.bundle.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <p className="text-slate-500 text-sm">No subscription record</p>
+        )}
       </div>
 
-      {company.bundles?.length > 0 && (
-        <div className="mt-4 pt-4 border-t">
-          <p className="text-xs text-slate-500 mb-2">Extra bundles added</p>
-          <div className="flex flex-wrap gap-2">
-            {company.bundles.map((cb) => (
-              <span key={cb.id} className="text-xs bg-blue-50 text-blue-600 px-3 py-2 rounded-xl">
-                {cb.bundle.name}
-              </span>
-            ))}
-          </div>
-        </div>
+      {showAddBundle && (
+        <AddBundleModal
+          company={company}
+          onClose={() => setShowAddBundle(false)}
+          onSuccess={fetchCompany}
+        />
       )}
-    </>
-  ) : (
-    <p className="text-slate-500 text-sm">No subscription record</p>
-  )}
-</div>
-
-{showAddBundle && (
-  <AddBundleModal
-    company={company}
-    onClose={() => setShowAddBundle(false)}
-    onSuccess={fetchCompany}
-  />
-)}
 
       <div className="bg-white rounded-3xl shadow p-8">
         <h2 className="text-lg font-bold mb-4">

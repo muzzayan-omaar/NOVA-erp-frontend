@@ -12,6 +12,7 @@ import {
   Trash2,
   UserCircle,
 } from "lucide-react";
+import { useConfirm } from "../../../components/ui/ConfirmProvider";
 
 const STATUS_STYLES = {
   DRAFT: "bg-slate-100 text-slate-600",
@@ -26,6 +27,7 @@ const PAYMENT_METHODS = ["CASH", "MOBILE_MONEY", "CARD", "CREDIT", "BANK_TRANSFE
 export default function QuoteDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { confirm } = useConfirm();
 
   const [quote, setQuote] = useState(null);
   const [products, setProducts] = useState([]);
@@ -106,7 +108,11 @@ export default function QuoteDetail() {
   const handleSend = async () => {
     try {
       const res = await api.post(`/quotes/${id}/send`);
-      toast.success(res.data.email?.sent ? "Quote emailed to customer" : "Marked as sent — email not configured, share manually");
+      toast.success(
+        res.data.email?.sent
+          ? "Quote emailed to customer"
+          : "Marked as sent — email not configured, share manually"
+      );
       fetchAll();
     } catch (err) {
       toast.error(err?.response?.data?.message || "Failed to send quote");
@@ -114,7 +120,16 @@ export default function QuoteDetail() {
   };
 
   const handleCancel = async () => {
-    if (!window.confirm("Cancel this quote?")) return;
+    const ok = await confirm({
+      title: "Cancel this quote?",
+      message:
+        "This can't be undone — you'd need to create a new quote if the customer changes their mind.",
+      confirmText: "Cancel Quote",
+      cancelText: "Keep It",
+      variant: "danger",
+    });
+    if (!ok) return;
+
     try {
       await api.post(`/quotes/${id}/cancel`);
       toast.success("Quote cancelled");
@@ -158,7 +173,9 @@ export default function QuoteDetail() {
         return;
       }
       if (Math.abs(splitRemaining) > 1) {
-        toast.error(`Payment lines don't add up (UGX ${splitRemaining.toLocaleString()} remaining)`);
+        toast.error(
+          `Payment lines don't add up (UGX ${splitRemaining.toLocaleString()} remaining)`
+        );
         return;
       }
     }
@@ -177,7 +194,13 @@ export default function QuoteDetail() {
       }
 
       const payload = splitMode
-        ? { payments: splitLines.map((l) => ({ method: l.method, amount: Number(l.amount), reference: l.reference || undefined })) }
+        ? {
+            payments: splitLines.map((l) => ({
+              method: l.method,
+              amount: Number(l.amount),
+              reference: l.reference || undefined,
+            })),
+          }
         : { paymentMethod: singleMethod };
 
       await api.post(`/quotes/${id}/convert`, payload);
@@ -213,16 +236,24 @@ export default function QuoteDetail() {
             </h1>
             <p className="text-slate-500 text-sm mt-1">
               By {quote.user?.name} · {new Date(quote.createdAt).toLocaleString()}
-              {quote.validUntil ? ` · Valid until ${new Date(quote.validUntil).toLocaleDateString()}` : ""}
+              {quote.validUntil
+                ? ` · Valid until ${new Date(quote.validUntil).toLocaleDateString()}`
+                : ""}
             </p>
           </div>
-          <span className={`px-4 py-2 rounded-full text-sm font-semibold ${STATUS_STYLES[quote.status]}`}>
+          <span
+            className={`px-4 py-2 rounded-full text-sm font-semibold ${
+              STATUS_STYLES[quote.status]
+            }`}
+          >
             {quote.status}
           </span>
         </div>
 
         {quote.notes && (
-          <p className="text-sm text-slate-600 bg-slate-50 rounded-xl p-3 mt-4">{quote.notes}</p>
+          <p className="text-sm text-slate-600 bg-slate-50 rounded-xl p-3 mt-4">
+            {quote.notes}
+          </p>
         )}
       </div>
 
@@ -230,7 +261,10 @@ export default function QuoteDetail() {
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-bold">Items</h2>
           {canAct && !editing && (
-            <button onClick={startEditing} className="text-sm text-blue-600 font-medium underline">
+            <button
+              onClick={startEditing}
+              className="text-sm text-blue-600 font-medium underline"
+            >
               Edit Items
             </button>
           )}
@@ -240,18 +274,23 @@ export default function QuoteDetail() {
           <div className="space-y-2">
             {quote.items.map((i) => (
               <div key={i.id} className="flex justify-between text-sm border-b py-3">
-                <span>{i.product?.name} × {i.quantity}</span>
+                <span>
+                  {i.product?.name} × {i.quantity}
+                </span>
                 <span className="font-medium">UGX {i.subtotal.toLocaleString()}</span>
               </div>
             ))}
             <div className="flex justify-between text-sm pt-3 text-slate-500">
-              <span>Subtotal</span><span>UGX {quote.subtotal.toLocaleString()}</span>
+              <span>Subtotal</span>
+              <span>UGX {quote.subtotal.toLocaleString()}</span>
             </div>
             <div className="flex justify-between text-sm text-slate-500">
-              <span>VAT (18%)</span><span>UGX {quote.vatAmount.toLocaleString()}</span>
+              <span>VAT (18%)</span>
+              <span>UGX {quote.vatAmount.toLocaleString()}</span>
             </div>
             <div className="flex justify-between text-lg font-bold pt-2 border-t">
-              <span>Total</span><span>UGX {quote.totalAmount.toLocaleString()}</span>
+              <span>Total</span>
+              <span>UGX {quote.totalAmount.toLocaleString()}</span>
             </div>
           </div>
         ) : (
@@ -265,7 +304,9 @@ export default function QuoteDetail() {
                 >
                   <option value="">Select product</option>
                   {products.map((p) => (
-                    <option key={p.id} value={p.id}>{p.name} — UGX {p.sellingPrice.toLocaleString()}</option>
+                    <option key={p.id} value={p.id}>
+                      {p.name} — UGX {p.sellingPrice.toLocaleString()}
+                    </option>
                   ))}
                 </select>
                 <input
@@ -275,12 +316,18 @@ export default function QuoteDetail() {
                   value={item.quantity}
                   onChange={(e) => updateEditItem(index, "quantity", e.target.value)}
                 />
-                <button onClick={() => removeEditRow(index)} className="col-span-1 text-red-500">
+                <button
+                  onClick={() => removeEditRow(index)}
+                  className="col-span-1 text-red-500"
+                >
                   <Trash2 size={18} />
                 </button>
               </div>
             ))}
-            <button onClick={addEditRow} className="flex items-center gap-2 text-sm text-blue-600 font-medium">
+            <button
+              onClick={addEditRow}
+              className="flex items-center gap-2 text-sm text-blue-600 font-medium"
+            >
               <Plus size={16} /> Add line item
             </button>
             <div className="flex gap-3 pt-4 border-t">
@@ -291,7 +338,10 @@ export default function QuoteDetail() {
               >
                 {savingEdit ? "Saving..." : "Save Changes"}
               </button>
-              <button onClick={() => setEditing(false)} className="flex-1 bg-slate-200 py-3 rounded-2xl font-semibold">
+              <button
+                onClick={() => setEditing(false)}
+                className="flex-1 bg-slate-200 py-3 rounded-2xl font-semibold"
+              >
                 Cancel
               </button>
             </div>
@@ -309,7 +359,8 @@ export default function QuoteDetail() {
                 onClick={handleSend}
                 className="flex items-center gap-2 text-sm font-medium text-blue-600 px-4 py-3 rounded-2xl border border-blue-200 hover:bg-blue-50"
               >
-                <Send size={16} /> {quote.customer?.email ? "Email Quote" : "Mark as Sent"}
+                <Send size={16} />{" "}
+                {quote.customer?.email ? "Email Quote" : "Mark as Sent"}
               </button>
             )}
             <button
@@ -331,13 +382,17 @@ export default function QuoteDetail() {
               <div className="flex gap-2">
                 <button
                   onClick={() => setSplitMode(false)}
-                  className={`flex-1 py-2 rounded-xl text-sm font-medium ${!splitMode ? "bg-slate-900 text-white" : "bg-slate-200"}`}
+                  className={`flex-1 py-2 rounded-xl text-sm font-medium ${
+                    !splitMode ? "bg-slate-900 text-white" : "bg-slate-200"
+                  }`}
                 >
                   Single Payment
                 </button>
                 <button
                   onClick={() => setSplitMode(true)}
-                  className={`flex-1 py-2 rounded-xl text-sm font-medium ${splitMode ? "bg-slate-900 text-white" : "bg-slate-200"}`}
+                  className={`flex-1 py-2 rounded-xl text-sm font-medium ${
+                    splitMode ? "bg-slate-900 text-white" : "bg-slate-200"
+                  }`}
                 >
                   Split Payment
                 </button>
@@ -349,7 +404,9 @@ export default function QuoteDetail() {
                     <button
                       key={m}
                       onClick={() => setSingleMethod(m)}
-                      className={`py-3 rounded-xl text-sm font-medium ${singleMethod === m ? "bg-blue-600 text-white" : "bg-slate-100"}`}
+                      className={`py-3 rounded-xl text-sm font-medium ${
+                        singleMethod === m ? "bg-blue-600 text-white" : "bg-slate-100"
+                      }`}
                     >
                       {m === "MOBILE_MONEY" ? "Mobile Money" : m}
                     </button>
@@ -358,11 +415,23 @@ export default function QuoteDetail() {
               ) : (
                 <div className="space-y-3">
                   {splitLines.map((l, i) => (
-                    <div key={i} className="flex justify-between items-center bg-slate-50 border rounded-xl p-3 text-sm">
-                      <span>{l.method === "MOBILE_MONEY" ? "Mobile Money" : l.method}</span>
+                    <div
+                      key={i}
+                      className="flex justify-between items-center bg-slate-50 border rounded-xl p-3 text-sm"
+                    >
+                      <span>
+                        {l.method === "MOBILE_MONEY" ? "Mobile Money" : l.method}
+                      </span>
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold">UGX {Number(l.amount).toLocaleString()}</span>
-                        <button onClick={() => removeSplitLine(i)} className="text-red-500"><Trash2 size={14} /></button>
+                        <span className="font-semibold">
+                          UGX {Number(l.amount).toLocaleString()}
+                        </span>
+                        <button
+                          onClick={() => removeSplitLine(i)}
+                          className="text-red-500"
+                        >
+                          <Trash2 size={14} />
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -370,10 +439,14 @@ export default function QuoteDetail() {
                     <select
                       className="p-3 border rounded-xl text-sm flex-1"
                       value={splitDraft.method}
-                      onChange={(e) => setSplitDraft({ ...splitDraft, method: e.target.value })}
+                      onChange={(e) =>
+                        setSplitDraft({ ...splitDraft, method: e.target.value })
+                      }
                     >
                       {PAYMENT_METHODS.map((m) => (
-                        <option key={m} value={m}>{m === "MOBILE_MONEY" ? "Mobile Money" : m}</option>
+                        <option key={m} value={m}>
+                          {m === "MOBILE_MONEY" ? "Mobile Money" : m}
+                        </option>
                       ))}
                     </select>
                     <input
@@ -381,42 +454,59 @@ export default function QuoteDetail() {
                       placeholder="Amount"
                       className="p-3 border rounded-xl text-sm w-28"
                       value={splitDraft.amount}
-                      onChange={(e) => setSplitDraft({ ...splitDraft, amount: e.target.value })}
+                      onChange={(e) =>
+                        setSplitDraft({ ...splitDraft, amount: e.target.value })
+                      }
                     />
-                    <button onClick={addSplitLine} className="bg-slate-900 text-white px-3 rounded-xl">
+                    <button
+                      onClick={addSplitLine}
+                      className="bg-slate-900 text-white px-3 rounded-xl"
+                    >
                       <Plus size={18} />
                     </button>
                   </div>
-                  <div className={`text-sm font-medium ${Math.abs(splitRemaining) < 1 ? "text-green-600" : "text-amber-600"}`}>
+                  <div
+                    className={`text-sm font-medium ${
+                      Math.abs(splitRemaining) < 1
+                        ? "text-green-600"
+                        : "text-amber-600"
+                    }`}
+                  >
                     Remaining to assign: UGX {splitRemaining.toLocaleString()}
                   </div>
                 </div>
               )}
 
-              {((splitMode && splitHasCredit) || (!splitMode && singleMethod === "CREDIT")) && !quote.customerId && (
-                <div>
-                  <label className="text-sm text-slate-500 mb-2 flex items-center gap-2">
-                    <UserCircle size={16} /> Customer required for the credit portion
-                  </label>
-                  <select
-                    className="w-full p-3 border rounded-2xl"
-                    value={creditCustomerId}
-                    onChange={(e) => setCreditCustomerId(e.target.value)}
-                  >
-                    <option value="">Select customer</option>
-                    {customers.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
+              {((splitMode && splitHasCredit) ||
+                (!splitMode && singleMethod === "CREDIT")) &&
+                !quote.customerId && (
+                  <div>
+                    <label className="text-sm text-slate-500 mb-2 flex items-center gap-2">
+                      <UserCircle size={16} /> Customer required for the credit portion
+                    </label>
+                    <select
+                      className="w-full p-3 border rounded-2xl"
+                      value={creditCustomerId}
+                      onChange={(e) => setCreditCustomerId(e.target.value)}
+                    >
+                      <option value="">Select customer</option>
+                      {customers.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
               <button
                 onClick={handleConvert}
                 disabled={converting}
                 className="w-full bg-green-600 text-white py-4 rounded-2xl font-semibold disabled:opacity-50"
               >
-                {converting ? "Converting..." : `Confirm & Complete Sale — UGX ${quote.totalAmount.toLocaleString()}`}
+                {converting
+                  ? "Converting..."
+                  : `Confirm & Complete Sale — UGX ${quote.totalAmount.toLocaleString()}`}
               </button>
             </div>
           )}

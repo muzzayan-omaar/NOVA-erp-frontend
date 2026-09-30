@@ -49,6 +49,7 @@ import QuotesModule from "./admin/modules/QuotesModule";
 import QuoteDetail from "./admin/modules/quotes/QuoteDetail";
 import BankReconciliationModule from "./admin/modules/BankReconciliationModule";
 import SettingsModule from "./admin/modules/SettingsModule";
+import StaffCreationWizard from "./admin/modules/users/StaffCreationWizard";
 
 import AuthGate from "./guards/AuthGate";
 import useAuthStore from "./store/useAuthStore";
@@ -219,6 +220,14 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+  path="users/new"
+  element={
+    <ProtectedRoute permission="users">
+      <StaffCreationWizard />
+    </ProtectedRoute>
+  }
+/>
           <Route
             path="quotes"
             element={

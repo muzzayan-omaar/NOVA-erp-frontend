@@ -50,6 +50,9 @@ import QuoteDetail from "./admin/modules/quotes/QuoteDetail";
 import BankReconciliationModule from "./admin/modules/BankReconciliationModule";
 import SettingsModule from "./admin/modules/SettingsModule";
 import StaffCreationWizard from "./admin/modules/users/StaffCreationWizard";
+import StaffDetail from "./admin/modules/users/StaffDetail";
+import StoreDetail from "./admin/modules/stores/StoreDetail";
+
 
 import AuthGate from "./guards/AuthGate";
 import useAuthStore from "./store/useAuthStore";
@@ -290,6 +293,14 @@ export default function App() {
             }
           />
           <Route
+  path="users/:id"
+  element={
+    <ProtectedRoute permission="users">
+      <StaffDetail />
+    </ProtectedRoute>
+  }
+/>
+          <Route
             path="suppliers/:id"
             element={
               <ProtectedRoute permission="suppliers">
@@ -331,6 +342,8 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          <Route path="/admin/stores" element={<StoresModule />} />
+<Route path="/admin/stores/:id" element={<StoreDetail />} />
         </Route>
 
         {/* Platform Area (sibling of admin, not nested) */}

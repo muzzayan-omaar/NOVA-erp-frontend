@@ -28,7 +28,6 @@ const STEPS = [
 
 export default function PlatformOnboardingWizard() {
   const navigate = useNavigate();
-
   const [step, setStep] = useState(1);
   const [catalog, setCatalog] = useState({ bundles: [], packages: [], billingCycles: [] });
   const [loadingCatalog, setLoadingCatalog] = useState(true);
@@ -64,7 +63,6 @@ export default function PlatformOnboardingWizard() {
         const bundles = bundlesRes.data.filter((b) => b.isActive);
         const packages = packagesRes.data.filter((p) => p.isActive);
         const billingCycles = cyclesRes.data.filter((c) => c.isActive);
-
         setCatalog({ bundles, packages, billingCycles });
         setForm((f) => ({
           ...f,
@@ -94,7 +92,6 @@ export default function PlatformOnboardingWizard() {
   const selectedPackage = catalog.packages.find((p) => p.code === form.packageCode);
   const selectedBundles = catalog.bundles.filter((b) => form.extraBundleCodes.includes(b.code));
   const selectedCycle = catalog.billingCycles.find((c) => c.code === form.billingCycleCode);
-
   const packageIncludedCodes = selectedPackage?.includedBundles?.map((b) => b.code) || [];
   const availableExtraBundles = catalog.bundles.filter((b) => !packageIncludedCodes.includes(b.code));
 
@@ -112,7 +109,7 @@ export default function PlatformOnboardingWizard() {
     if (step === 2) return Boolean(form.packageCode);
     if (step === 4) return Boolean(form.billingCycleCode);
     if (step === 5) return form.storeName.trim().length > 0;
-    if (step === 6) return form.gmName.trim().length > 0 && form.gmEmail.trim().length > 0;
+    if (step === 6) return form.gmName.trim().length > 0; // email is now optional
     return true;
   };
 
@@ -123,6 +120,7 @@ export default function PlatformOnboardingWizard() {
     }
     setStep((s) => Math.min(s + 1, 7));
   };
+
   const back = () => setStep((s) => Math.max(s - 1, 1));
 
   const handleCreate = async () => {
@@ -142,14 +140,13 @@ export default function PlatformOnboardingWizard() {
     const text = [
       `Welcome to Novrr ERP!`,
       ``,
-      `Business Code: ${result.businessCode}`,
-      `Login Email: ${result.gmEmail}`,
+      `Store Code: ${result.storeCode}`,
+      `Staff ID: ${result.staffId}`,
       `Temporary Password: ${result.tempPassword}`,
       ``,
-      `You'll be asked to set a new password the first time you log in.`,
+      `You'll be asked to set your own password the first time you log in.`,
       `Coverage until: ${new Date(result.coverageEndDate).toLocaleDateString()}`,
     ].join("\n");
-
     navigator.clipboard.writeText(text);
     setCopied(true);
     toast.success("Copied — ready to send");
@@ -172,16 +169,21 @@ export default function PlatformOnboardingWizard() {
 
           <div className="bg-slate-50 rounded-2xl p-6 text-left space-y-3">
             <div>
-              <p className="text-xs text-slate-500">Business Code</p>
-              <p className="font-mono font-bold text-lg">{result.businessCode}</p>
+              <p className="text-xs text-slate-500">Store Code</p>
+              <p className="font-mono font-bold text-lg">{result.storeCode}</p>
             </div>
             <div>
-              <p className="text-xs text-slate-500">GM Login Email</p>
-              <p className="font-semibold">{result.gmEmail}</p>
+              <p className="text-xs text-slate-500">Staff ID (General Manager)</p>
+              <p className="font-mono font-bold text-lg">{result.staffId}</p>
             </div>
             <div>
               <p className="text-xs text-slate-500">Temporary Password</p>
               <p className="font-mono font-bold text-lg text-red-600">{result.tempPassword}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500">Business Code</p>
+              <p className="font-semibold">{result.businessCode}</p>
+              <p className="text-xs text-slate-400">For your records — not used to log in</p>
             </div>
             <div>
               <p className="text-xs text-slate-500">Charged</p>
@@ -199,7 +201,6 @@ export default function PlatformOnboardingWizard() {
           >
             <Copy size={18} /> {copied ? "Copied!" : "Copy All Details"}
           </button>
-
           <button
             onClick={() => navigate(`/platform/companies/${result.companyId}`)}
             className="w-full mt-3 text-slate-500 py-3 font-medium"
@@ -217,6 +218,7 @@ export default function PlatformOnboardingWizard() {
         <Sparkles /> Onboard New Company
       </h1>
 
+      {/* Step indicators */}
       <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
         {STEPS.map((label, i) => (
           <div
@@ -236,30 +238,55 @@ export default function PlatformOnboardingWizard() {
       </div>
 
       <div className="grid grid-cols-3 gap-6">
+        {/* Main form */}
         <div className="col-span-2 bg-white rounded-3xl shadow p-8">
           {step === 1 && (
             <div className="space-y-4">
-              <h2 className="text-lg font-bold flex items-center gap-2"><Building2 size={20} /> Business & Contact</h2>
-              <input className="w-full p-3 border rounded-2xl" placeholder="Company Name"
-                value={form.companyName} onChange={(e) => update("companyName", e.target.value)} />
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <Building2 size={20} /> Business & Contact
+              </h2>
+              <input
+                className="w-full p-3 border rounded-2xl"
+                placeholder="Company Name"
+                value={form.companyName}
+                onChange={(e) => update("companyName", e.target.value)}
+              />
               <div className="grid grid-cols-2 gap-4">
-                <input className="p-3 border rounded-2xl" placeholder="Phone"
-                  value={form.phone} onChange={(e) => update("phone", e.target.value)} />
-                <input className="p-3 border rounded-2xl" placeholder="Email"
-                  value={form.email} onChange={(e) => update("email", e.target.value)} />
+                <input
+                  className="p-3 border rounded-2xl"
+                  placeholder="Phone"
+                  value={form.phone}
+                  onChange={(e) => update("phone", e.target.value)}
+                />
+                <input
+                  className="p-3 border rounded-2xl"
+                  placeholder="Email"
+                  value={form.email}
+                  onChange={(e) => update("email", e.target.value)}
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <input className="p-3 border rounded-2xl" placeholder="Country"
-                  value={form.country} onChange={(e) => update("country", e.target.value)} />
-                <input className="p-3 border rounded-2xl" placeholder="Currency"
-                  value={form.currency} onChange={(e) => update("currency", e.target.value)} />
+                <input
+                  className="p-3 border rounded-2xl"
+                  placeholder="Country"
+                  value={form.country}
+                  onChange={(e) => update("country", e.target.value)}
+                />
+                <input
+                  className="p-3 border rounded-2xl"
+                  placeholder="Currency"
+                  value={form.currency}
+                  onChange={(e) => update("currency", e.target.value)}
+                />
               </div>
             </div>
           )}
 
           {step === 2 && (
             <div className="space-y-4">
-              <h2 className="text-lg font-bold flex items-center gap-2"><PackageIcon size={20} /> Choose a Package</h2>
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <PackageIcon size={20} /> Choose a Package
+              </h2>
               <div className="space-y-3">
                 {catalog.packages.map((p) => (
                   <button
@@ -279,7 +306,9 @@ export default function PlatformOnboardingWizard() {
                         {p.includedBundles?.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-2">
                             {p.includedBundles.map((b) => (
-                              <span key={b.id} className="text-xs bg-white border px-2 py-1 rounded-lg">{b.name}</span>
+                              <span key={b.id} className="text-xs bg-white border px-2 py-1 rounded-lg">
+                                {b.name}
+                              </span>
                             ))}
                           </div>
                         )}
@@ -294,20 +323,22 @@ export default function PlatformOnboardingWizard() {
 
           {step === 3 && (
             <div className="space-y-4">
-              <h2 className="text-lg font-bold flex items-center gap-2"><Layers size={20} /> Extra Bundles</h2>
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <Layers size={20} /> Extra Bundles
+              </h2>
               <p className="text-sm text-slate-500">Optional — add on top of {selectedPackage?.name}.</p>
-
               {packageIncludedCodes.length > 0 && (
                 <div className="bg-green-50 rounded-2xl p-4">
                   <p className="text-xs font-semibold text-green-700 mb-2">Already included</p>
                   <div className="flex flex-wrap gap-2">
                     {selectedPackage.includedBundles.map((b) => (
-                      <span key={b.id} className="text-xs bg-white px-3 py-2 rounded-xl border">{b.name}</span>
+                      <span key={b.id} className="text-xs bg-white px-3 py-2 rounded-xl border">
+                        {b.name}
+                      </span>
                     ))}
                   </div>
                 </div>
               )}
-
               <div className="space-y-3">
                 {availableExtraBundles.map((b) => (
                   <button
@@ -325,7 +356,9 @@ export default function PlatformOnboardingWizard() {
                   </button>
                 ))}
                 {availableExtraBundles.length === 0 && (
-                  <p className="text-sm text-slate-400 text-center py-6">Every bundle is already included in this package.</p>
+                  <p className="text-sm text-slate-400 text-center py-6">
+                    Every bundle is already included in this package.
+                  </p>
                 )}
               </div>
             </div>
@@ -333,7 +366,9 @@ export default function PlatformOnboardingWizard() {
 
           {step === 4 && (
             <div className="space-y-4">
-              <h2 className="text-lg font-bold flex items-center gap-2"><Calendar size={20} /> Billing Cycle</h2>
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <Calendar size={20} /> Billing Cycle
+              </h2>
               <div className="space-y-3">
                 {catalog.billingCycles.map((c) => (
                   <button
@@ -345,7 +380,8 @@ export default function PlatformOnboardingWizard() {
                   >
                     <p className="font-bold">{c.name}</p>
                     <p className="text-sm text-slate-500">
-                      Pay for {c.payMonths} month(s){c.bonusMonths > 0 ? `, get ${c.bonusMonths} free` : ""}
+                      Pay for {c.payMonths} month(s)
+                      {c.bonusMonths > 0 ? `, get ${c.bonusMonths} free` : ""}
                     </p>
                   </button>
                 ))}
@@ -355,25 +391,50 @@ export default function PlatformOnboardingWizard() {
 
           {step === 5 && (
             <div className="space-y-4">
-              <h2 className="text-lg font-bold flex items-center gap-2"><StoreIcon size={20} /> First Store</h2>
-              <input className="w-full p-3 border rounded-2xl" placeholder="Store Name (e.g. Head Office)"
-                value={form.storeName} onChange={(e) => update("storeName", e.target.value)} />
-              <input className="w-full p-3 border rounded-2xl" placeholder="Location"
-                value={form.storeLocation} onChange={(e) => update("storeLocation", e.target.value)} />
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <StoreIcon size={20} /> First Store
+              </h2>
+              <input
+                className="w-full p-3 border rounded-2xl"
+                placeholder="Store Name (e.g. Head Office)"
+                value={form.storeName}
+                onChange={(e) => update("storeName", e.target.value)}
+              />
+              <input
+                className="w-full p-3 border rounded-2xl"
+                placeholder="Location"
+                value={form.storeLocation}
+                onChange={(e) => update("storeLocation", e.target.value)}
+              />
             </div>
           )}
 
           {step === 6 && (
             <div className="space-y-4">
-              <h2 className="text-lg font-bold flex items-center gap-2"><User size={20} /> First User (General Manager)</h2>
-              <input className="w-full p-3 border rounded-2xl" placeholder="Full Name"
-                value={form.gmName} onChange={(e) => update("gmName", e.target.value)} />
-              <input className="w-full p-3 border rounded-2xl" placeholder="Email (this becomes their login)"
-                value={form.gmEmail} onChange={(e) => update("gmEmail", e.target.value)} />
-              <input className="w-full p-3 border rounded-2xl" placeholder="Phone"
-                value={form.gmPhone} onChange={(e) => update("gmPhone", e.target.value)} />
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <User size={20} /> First User (General Manager)
+              </h2>
+              <input
+                className="w-full p-3 border rounded-2xl"
+                placeholder="Full Name"
+                value={form.gmName}
+                onChange={(e) => update("gmName", e.target.value)}
+              />
+              <input
+                className="w-full p-3 border rounded-2xl"
+                placeholder="Email (optional contact info — not used for login)"
+                value={form.gmEmail}
+                onChange={(e) => update("gmEmail", e.target.value)}
+              />
+              <input
+                className="w-full p-3 border rounded-2xl"
+                placeholder="Phone"
+                value={form.gmPhone}
+                onChange={(e) => update("gmPhone", e.target.value)}
+              />
               <p className="text-xs text-slate-400">
-                A temporary password is generated automatically — you'll relay it after creation.
+                Login uses a Store Code and Staff ID, both generated automatically along with a temporary
+                password — you'll relay all three after creation.
               </p>
             </div>
           )}
@@ -382,39 +443,72 @@ export default function PlatformOnboardingWizard() {
             <div className="space-y-4">
               <h2 className="text-lg font-bold">Review</h2>
               <div className="space-y-3 text-sm">
-                <div className="flex justify-between border-b pb-2"><span className="text-slate-500">Company</span><span className="font-medium">{form.companyName}</span></div>
-                <div className="flex justify-between border-b pb-2"><span className="text-slate-500">Package</span><span className="font-medium">{selectedPackage?.name}</span></div>
+                <div className="flex justify-between border-b pb-2">
+                  <span className="text-slate-500">Company</span>
+                  <span className="font-medium">{form.companyName}</span>
+                </div>
+                <div className="flex justify-between border-b pb-2">
+                  <span className="text-slate-500">Package</span>
+                  <span className="font-medium">{selectedPackage?.name}</span>
+                </div>
                 {selectedBundles.length > 0 && (
-                  <div className="flex justify-between border-b pb-2"><span className="text-slate-500">Extra Bundles</span><span className="font-medium">{selectedBundles.map((b) => b.name).join(", ")}</span></div>
+                  <div className="flex justify-between border-b pb-2">
+                    <span className="text-slate-500">Extra Bundles</span>
+                    <span className="font-medium">{selectedBundles.map((b) => b.name).join(", ")}</span>
+                  </div>
                 )}
-                <div className="flex justify-between border-b pb-2"><span className="text-slate-500">Billing</span><span className="font-medium">{selectedCycle?.name}</span></div>
-                <div className="flex justify-between border-b pb-2"><span className="text-slate-500">Store</span><span className="font-medium">{form.storeName}</span></div>
-                <div className="flex justify-between border-b pb-2"><span className="text-slate-500">GM</span><span className="font-medium">{form.gmName} ({form.gmEmail})</span></div>
-                <div className="flex justify-between border-b pb-2 text-base"><span className="font-semibold">Total Charge</span><span className="font-bold">UGX {chargeAmount.toLocaleString()}</span></div>
-                <div className="flex justify-between text-base"><span className="font-semibold">Covered Until</span><span className="font-bold">{previewEndDate.toLocaleDateString()}</span></div>
+                <div className="flex justify-between border-b pb-2">
+                  <span className="text-slate-500">Billing</span>
+                  <span className="font-medium">{selectedCycle?.name}</span>
+                </div>
+                <div className="flex justify-between border-b pb-2">
+                  <span className="text-slate-500">Store</span>
+                  <span className="font-medium">{form.storeName}</span>
+                </div>
+                <div className="flex justify-between border-b pb-2">
+                  <span className="text-slate-500">GM</span>
+                  <span className="font-medium">
+                    {form.gmName}
+                    {form.gmEmail ? ` (${form.gmEmail})` : ""}
+                  </span>
+                </div>
+                <div className="flex justify-between border-b pb-2 text-base">
+                  <span className="font-semibold">Total Charge</span>
+                  <span className="font-bold">UGX {chargeAmount.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-base">
+                  <span className="font-semibold">Covered Until</span>
+                  <span className="font-bold">{previewEndDate.toLocaleDateString()}</span>
+                </div>
               </div>
-                <label className="flex items-start gap-3 text-sm text-slate-600 mt-4 pt-4 border-t">
-  <input
-    type="checkbox"
-    checked={repConfirmedClientAgreed}
-    onChange={(e) => setRepConfirmedClientAgreed(e.target.checked)}
-    className="mt-1"
-  />
-  <span>
-    I confirm this client has been informed of and agreed to Novrr's{" "}
-    <a href="/terms" target="_blank" className="underline text-blue-600">Terms of Service</a>{" "}
-    and{" "}
-    <a href="/privacy" target="_blank" className="underline text-blue-600">Privacy Policy</a>.
-  </span>
-                </label>
 
-                <button
-                  onClick={handleCreate}
-                  disabled={submitting || !repConfirmedClientAgreed}
-                  className="w-full mt-4 bg-green-600 text-white py-4 rounded-2xl font-semibold disabled:opacity-50"
-                >
-                  {submitting ? "Creating..." : "Create Company"}
-                </button>
+              <label className="flex items-start gap-3 text-sm text-slate-600 mt-4 pt-4 border-t">
+                <input
+                  type="checkbox"
+                  checked={repConfirmedClientAgreed}
+                  onChange={(e) => setRepConfirmedClientAgreed(e.target.checked)}
+                  className="mt-1"
+                />
+                <span>
+                  I confirm this client has been informed of and agreed to Novrr's{" "}
+                  <a href="/terms" target="_blank" className="underline text-blue-600">
+                    Terms of Service
+                  </a>{" "}
+                  and{" "}
+                  <a href="/privacy" target="_blank" className="underline text-blue-600">
+                    Privacy Policy
+                  </a>
+                  .
+                </span>
+              </label>
+
+              <button
+                onClick={handleCreate}
+                disabled={submitting || !repConfirmedClientAgreed}
+                className="w-full mt-4 bg-green-600 text-white py-4 rounded-2xl font-semibold disabled:opacity-50"
+              >
+                {submitting ? "Creating..." : "Create Company"}
+              </button>
             </div>
           )}
 
@@ -437,6 +531,7 @@ export default function PlatformOnboardingWizard() {
           )}
         </div>
 
+        {/* Summary sidebar */}
         <div className="bg-white rounded-3xl shadow p-6 h-fit sticky top-6">
           <h3 className="font-bold mb-4 text-sm text-slate-500 uppercase tracking-wide">Summary</h3>
           <div className="space-y-3 text-sm">

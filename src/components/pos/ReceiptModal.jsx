@@ -31,7 +31,7 @@ export default function ReceiptModal({ open, onClose, sale, onVoided }) {
         {/* Header */}
         <div className="bg-slate-900 text-white p-6 text-center">
           <CheckCircle className="mx-auto mb-3 text-green-400" size={48} />
-          <h2 className="text-2xl font-bold">NOVA HARDWARE STORE</h2>
+          <h2 className="text-2xl font-bold">NOVRR HARDWARE STORE</h2>
           <p className="text-slate-400 text-sm">Kampala, Uganda</p>
           <p className="text-xs text-slate-500 mt-2">EFRIS Compliant • VAT Registered</p>
         </div>
@@ -55,7 +55,7 @@ export default function ReceiptModal({ open, onClose, sale, onVoided }) {
             </div>
           ) : (
             <div className="text-center bg-slate-100 py-2 rounded-xl mb-6 text-sm font-medium">
-              Fiscal Receipt ID: <span className="font-mono">{fiscalReceiptId || 'NOVA-' + Date.now()}</span>
+              Fiscal Receipt ID: <span className="font-mono">{fiscalReceiptId || 'NOVRR-' + Date.now()}</span>
             </div>
           )}
 
@@ -137,7 +137,7 @@ export default function ReceiptModal({ open, onClose, sale, onVoided }) {
         </div>
 
         <div className="text-center text-[10px] text-slate-400 pb-4">
-          Thank You • Powered by Nova ERP Uganda
+          Thank You • Powered by Novrr ERP Uganda
         </div>
       </div>
 

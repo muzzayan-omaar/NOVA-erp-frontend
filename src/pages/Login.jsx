@@ -87,7 +87,7 @@ export default function Login() {
                 </div>
                 <div>
                   <p className="text-white font-bold tracking-tight leading-none text-sm">
-                    NOVA <span className="text-nova-cyan">ERP</span>
+                    NOVRR <span className="text-nova-cyan">ERP</span>
                   </p>
                   <p className="text-[10px] text-slate-400 mt-0.5">Smarter Business. Greater Control.</p>
                 </div>
@@ -113,7 +113,7 @@ export default function Login() {
                 N
               </div>
               <p className="font-bold text-nova-900">
-                NOVA <span className="text-nova-blue">ERP</span>
+                NOVRR <span className="text-nova-blue">ERP</span>
               </p>
             </div>
 
@@ -205,7 +205,7 @@ export default function Login() {
 
         <div className="text-center mt-4">
           <p className="text-slate-500 text-xs">
-            NOVA ERP<span className="align-super text-[9px]">™</span> &nbsp;|&nbsp; v1.0
+            NOVRR ERP<span className="align-super text-[9px]">™</span> &nbsp;|&nbsp; v1.0
           </p>
           <p className="text-slate-600 text-[11px] mt-1">
             Inventory &nbsp;•&nbsp; Sales &nbsp;•&nbsp; Purchases &nbsp;•&nbsp; Payroll &nbsp;•&nbsp; Reports &nbsp;•&nbsp; More

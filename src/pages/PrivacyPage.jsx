@@ -9,13 +9,13 @@ export default function PrivacyPage() {
           Draft — this document has not yet completed legal review and is subject to change.
         </div>
 
-        <h1 className="text-2xl font-bold mb-2">Nova ERP — Privacy Policy</h1>
+        <h1 className="text-2xl font-bold mb-2">Novrr ERP — Privacy Policy</h1>
         <p className="text-sm text-slate-400 mb-8">Last updated: [DATE]</p>
 
         <div className="prose prose-slate max-w-none text-sm leading-relaxed space-y-4">
           <p>
             This Privacy Policy explains how <strong>[Company Legal Name]</strong>
-            collects, uses, and protects personal data through Nova ERP.
+            collects, uses, and protects personal data through Novrr ERP.
           </p>
 
           <h2 className="text-lg font-bold mt-6">1. What We Collect</h2>
@@ -35,10 +35,10 @@ export default function PrivacyPage() {
 
           <h2 className="text-lg font-bold mt-6">3. Who Can See Your Data</h2>
           <p>
-            Your own staff, according to role-based permissions you control; and Nova
+            Your own staff, according to role-based permissions you control; and Novrr ERP
             platform staff, only when verifying a payment or providing support you've
             requested — every such access is logged. Your data is never shared with other
-            businesses using Nova ERP.
+            businesses using Novrr ERP.
           </p>
 
           <h2 className="text-lg font-bold mt-6">4. Data Security</h2>

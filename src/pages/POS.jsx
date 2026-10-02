@@ -376,7 +376,7 @@ export default function POS() {
           </div>
           <div>
             <h1 className="text-2xl font-bold">
-              NOVA <span className="text-nova-cyan">POS</span>
+              NOVRR <span className="text-nova-cyan">POS</span>
             </h1>
             <p className="text-slate-400 text-sm">{user?.store?.name || "Demo Store"}</p>
           </div>

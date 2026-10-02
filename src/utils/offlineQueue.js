@@ -1,4 +1,4 @@
-const QUEUE_KEY = "nova_offline_sales_queue";
+const QUEUE_KEY = "novrr_offline_sales_queue";
 
 const readQueue = () => {
   try {

@@ -315,7 +315,7 @@ export default function StaffDetail() {
           </div>
           <img
             src={logo}
-            alt="Nova ERP"
+            alt="Novrr ERP"
             className="w-10 h-10 opacity-40 hidden sm:block"
           />
         </div>

@@ -30,11 +30,11 @@ export default function PlatformLayout() {
         <div className="p-6 flex items-center gap-3 border-b border-slate-800">
            <img
               src={logo}
-              alt="Nova ERP"
+              alt="Novrr ERP"
               className="w-10 h-10 rounded-lg object-contain"
             />
           <div>
-            <p className="font-bold">Nova Portal</p>
+            <p className="font-bold">Novrr Portal</p>
             <p className="text-xs text-slate-400">{admin?.name}</p>
           </div>
         </div>

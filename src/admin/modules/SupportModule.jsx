@@ -78,7 +78,7 @@ export default function SupportModule() {
         subject: form.subject.trim(),
         message: form.message.trim(),
       });
-      toast.success("Message sent to Nova support");
+      toast.success("Message sent to Novrr support");
       setForm({ subject: "", message: "" });
       setShowForm(false);
       navigate(`/admin/support/${res.data.id}`);
@@ -196,7 +196,7 @@ export default function SupportModule() {
           className="bg-white rounded-3xl shadow-sm p-6 space-y-5 border border-nova-blue/20"
         >
           <div>
-            <h2 className="font-bold text-lg">Message Nova support</h2>
+            <h2 className="font-bold text-lg">Message Novrr support</h2>
             <p className="text-sm text-slate-500 mt-0.5">
               Include your company name, store, and what you were trying to do
               if it’s a bug report — that helps us respond faster.
@@ -232,7 +232,7 @@ export default function SupportModule() {
               disabled={submitting}
               className="bg-nova-gradient text-white px-6 py-3 rounded-2xl font-semibold disabled:opacity-50"
             >
-              {submitting ? "Sending..." : "Send to Nova"}
+              {submitting ? "Sending..." : "Send to Novrr support"}
             </button>
             <button
               type="button"
@@ -280,7 +280,7 @@ export default function SupportModule() {
       <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
         <div className="px-5 py-3 border-b bg-slate-50 flex items-center justify-between">
           <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
-            Your conversations with Nova
+            Your conversations with Novrr
           </p>
           {statusFilter !== "ALL" && (
             <button
@@ -303,7 +303,7 @@ export default function SupportModule() {
             <p className="font-semibold text-slate-700">No conversations yet</p>
             <p className="text-sm text-slate-500 mt-1 max-w-sm mx-auto">
               Stuck on something? Billing question? Feature idea? Send a message
-              — a real person on the Nova team will reply.
+              — a real person on the Novrr team will reply.
             </p>
             <button
               type="button"

@@ -89,7 +89,7 @@ export default function SubscriptionExpiredScreen({ status, onRenewed }) {
                     : "Your subscription has expired"}
               </h1>
               <p className="text-slate-500 mt-2">
-                Renew below to keep using Nova ERP. Your data is safe and
+                Renew below to keep using Novrr ERP. Your data is safe and
                 nothing has been deleted.
               </p>
             </div>

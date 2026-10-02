@@ -86,7 +86,7 @@ export default function StaffCreationWizard() {
 
   const copyHandoff = () => {
     const text = [
-      `Welcome to Nova ERP!`,
+      `Welcome to Novrr ERP!`,
       ``,
       `Store Code: ${result.storeCode}`,
       `Staff ID: ${result.staffId}`,

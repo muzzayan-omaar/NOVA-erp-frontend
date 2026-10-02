@@ -40,7 +40,7 @@ export default function PlatformLogin() {
       <div className="bg-white rounded-3xl shadow-xl w-full max-w-sm p-8">
         <div className="text-center mb-8">
           <ShieldCheck className="mx-auto text-blue-600 mb-3" size={44} />
-          <h1 className="text-xl font-bold">Nova Platform Admin</h1>
+          <h1 className="text-xl font-bold">Novrr Platform Admin</h1>
           <p className="text-slate-500 text-sm mt-1">
             Not a shop login — platform owner access only
           </p>

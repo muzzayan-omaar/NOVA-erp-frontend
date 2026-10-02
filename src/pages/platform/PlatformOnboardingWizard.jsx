@@ -140,7 +140,7 @@ export default function PlatformOnboardingWizard() {
 
   const copyHandoff = () => {
     const text = [
-      `Welcome to Nova ERP!`,
+      `Welcome to Novrr ERP!`,
       ``,
       `Business Code: ${result.businessCode}`,
       `Login Email: ${result.gmEmail}`,
@@ -401,7 +401,7 @@ export default function PlatformOnboardingWizard() {
     className="mt-1"
   />
   <span>
-    I confirm this client has been informed of and agreed to Nova's{" "}
+    I confirm this client has been informed of and agreed to Novrr's{" "}
     <a href="/terms" target="_blank" className="underline text-blue-600">Terms of Service</a>{" "}
     and{" "}
     <a href="/privacy" target="_blank" className="underline text-blue-600">Privacy Policy</a>.

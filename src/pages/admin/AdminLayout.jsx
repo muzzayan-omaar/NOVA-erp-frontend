@@ -148,7 +148,7 @@ export default function AdminLayout() {
 
   const handleLogout = async () => {
     const ok = await confirm({
-      title: "Log out of Nova ERP?",
+      title: "Log out of Novrr ERP?",
       message: "You'll need to sign in again to continue.",
       confirmText: "Log Out",
       cancelText: "Stay Signed In",
@@ -259,10 +259,10 @@ export default function AdminLayout() {
       <div className="w-72 bg-nova-950 text-white flex flex-col border-r border-white/5">
         {/* Brand */}
         <div className="p-6 border-b border-white/5 flex items-center gap-3">
-          <img src={logo} alt="Nova ERP™" className="w-14 h-14 rounded-xl object-contain" />
+          <img src={logo} alt="Novrr ERP™" className="w-14 h-14 rounded-xl object-contain" />
           <div>
             <h1 className="text-lg font-bold tracking-tight leading-tight">
-              NOVA <span className="text-nova-cyan">ERP™</span>
+              NOVRR <span className="text-nova-cyan">ERP™</span>
             </h1>
             <p className="text-slate-500 text-[11px]">Business Control Center</p>
           </div>

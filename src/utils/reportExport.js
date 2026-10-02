@@ -5,7 +5,7 @@ export const exportReportPdf = ({ title, subtitle, columns, rows, summaryLines =
   const doc = new jsPDF();
 
   doc.setFontSize(16);
-  doc.text("Nova ERP", 14, 18);
+  doc.text("Novrr ERP", 14, 18);
   doc.setFontSize(12);
   doc.text(title, 14, 26);
 

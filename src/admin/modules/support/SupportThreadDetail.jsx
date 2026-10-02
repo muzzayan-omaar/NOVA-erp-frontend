@@ -179,7 +179,7 @@ export default function SupportThreadDetail() {
         {/* Thread header */}
         <div className="px-5 py-4 border-b bg-slate-50/80 flex items-start gap-3 flex-shrink-0">
           <div className="w-10 h-10 rounded-2xl bg-white border border-slate-100 flex items-center justify-center flex-shrink-0 overflow-hidden p-1.5">
-  <img src={logo} alt="Nova" className="w-full h-full object-contain" />
+  <img src={logo} alt="Novrr" className="w-full h-full object-contain" />
 </div>
           <div className="min-w-0 flex-1">
             <h1 className="font-bold text-nova-900 truncate">{thread.subject}</h1>
@@ -226,7 +226,7 @@ export default function SupportThreadDetail() {
               const isMine = Boolean(m.senderUserId);
               const name = isMine
                 ? m.senderUser?.name || "You"
-                : m.senderPlatformAdmin?.name || "Nova Support";
+                : m.senderPlatformAdmin?.name || "Novrr Support";
 
               return (
                 <div
@@ -242,7 +242,7 @@ export default function SupportThreadDetail() {
                     {!isMine && (
   <div className="flex items-center gap-2 px-1">
     <div className="w-7 h-7 rounded-full bg-white border border-slate-100 flex items-center justify-center overflow-hidden p-0.5">
-      <img src={logo} alt="Nova" className="w-full h-full object-contain" />
+      <img src={logo} alt="Novrr" className="w-full h-full object-contain" />
     </div>
     <span className="text-[11px] font-semibold text-slate-500">
       {name}
@@ -297,7 +297,7 @@ export default function SupportThreadDetail() {
               ref={inputRef}
               rows={1}
               className="flex-1 p-3 border rounded-2xl resize-none text-sm max-h-32 focus:outline-none focus:ring-2 focus:ring-nova-blue/30"
-              placeholder="Write a reply to Nova…"
+              placeholder="Write a reply to Novrr…"
               value={reply}
               onChange={(e) => {
                 setReply(e.target.value);

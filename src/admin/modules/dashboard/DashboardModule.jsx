@@ -150,7 +150,7 @@ export default function DashboardModule() {
 
     XLSX.writeFile(
       workbook,
-      `Nova_Report_${new Date().toISOString().slice(0,10)}.xlsx`
+      `Novrr_Report_${new Date().toISOString().slice(0,10)}.xlsx`
     );
 
     toast.success("Excel exported");
@@ -162,7 +162,7 @@ export default function DashboardModule() {
   const exportToPDF = ()=>{
     const doc = new jsPDF();
 
-    doc.text("Nova ERP Sales Report", 14, 20);
+    doc.text("Novrr ERP Sales Report", 14, 20);
 
     doc.autoTable({
       head:[["Date", "Revenue", "Transactions"]],
@@ -173,7 +173,7 @@ export default function DashboardModule() {
       ])
     });
 
-    doc.save(`Nova_Report_${new Date().toISOString().slice(0,10)}.pdf`);
+    doc.save(`Novrr_Report_${new Date().toISOString().slice(0,10)}.pdf`);
     toast.success("PDF exported");
   };
 

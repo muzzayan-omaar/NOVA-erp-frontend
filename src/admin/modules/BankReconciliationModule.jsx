@@ -254,7 +254,7 @@ export default function BankReconciliationModule() {
           {unmatched.length > 0 && (
             <div className="bg-white rounded-3xl shadow p-8">
               <h2 className="font-bold text-lg mb-4 flex items-center gap-2 text-red-600">
-                <AlertTriangle size={20} /> On the Statement, Not Found in Nova
+                <AlertTriangle size={20} /> On the Statement, Not Found in Novrr
               </h2>
               {unmatched.map((row, i) => (
                 <div key={i} className="flex justify-between text-sm border-b py-3">
@@ -268,7 +268,7 @@ export default function BankReconciliationModule() {
           {result.unmatchedInternal.length > 0 && (
             <div className="bg-white rounded-3xl shadow p-8">
               <h2 className="font-bold text-lg mb-4 flex items-center gap-2 text-slate-600">
-                <AlertTriangle size={20} /> Recorded in Nova, Not Found on Statement
+                <AlertTriangle size={20} /> Recorded in Novrr, Not Found on Statement
               </h2>
               {result.unmatchedInternal.map((c) => (
                 <div key={c.id} className="flex justify-between text-sm border-b py-3">

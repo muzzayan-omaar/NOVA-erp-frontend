@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import useAuthStore from "../store/useAuthStore";
-import { ShoppingCart, LogOut, Search, X, Loader2, LayoutDashboard, WifiOff, CloudUpload, AlertCircle, UserCircle, Plus, Trash2, Hash } from "lucide-react";
+import { ShoppingCart, LogOut, Search, X, Loader2, LayoutDashboard, WifiOff, CloudUpload, AlertCircle, UserCircle, Plus, Trash2, Hash, Wallet } from "lucide-react";
 import toast from "react-hot-toast";
 import ReceiptModal from "../components/pos/ReceiptModal";
 import BarcodeScanner from "../components/pos/BarcodeScanner";
@@ -13,6 +13,9 @@ import { useConfirm } from "../components/ui/ConfirmProvider";
 import useOfflineSalesSync from "../hooks/useOfflineSalesSync";
 import { addToQueue } from "../utils/offlineQueue";
 import { hasPermission } from "../utils/hasPermission";
+import useCurrentShift from "../hooks/useCurrentShift";
+import StartShiftScreen from "../components/pos/StartShiftScreen";
+import EndShiftModal from "../components/pos/EndShiftModal";
 
 const PAYMENT_METHODS = ["CASH", "MOBILE_MONEY", "CARD", "CREDIT", "BANK_TRANSFER"];
 
@@ -26,6 +29,8 @@ export default function POS() {
   const [paymentMethod, setPaymentMethod] = useState("CASH");
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+  const { shift, loading: shiftLoading, refetch: refetchShift } = useCurrentShift();
+  const [showEndShift, setShowEndShift] = useState(false);
 
   const [customers, setCustomers] = useState([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
@@ -366,6 +371,16 @@ export default function POS() {
       (p.barcode && p.barcode.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
+  // Gate: cashiers must have an open shift before using POS
+  if (user?.role === "CASHIER") {
+    if (shiftLoading) {
+      return <div className="h-screen flex items-center justify-center bg-nova-950 text-white">Loading...</div>;
+    }
+    if (!shift) {
+      return <StartShiftScreen onShiftOpened={refetchShift} />;
+    }
+  }
+
   return (
     <div className="h-screen bg-slate-100 flex flex-col overflow-hidden">
       {/* Top Bar */}
@@ -394,6 +409,15 @@ export default function POS() {
               className="bg-white/10 hover:bg-white/15 px-5 py-2 rounded-lg text-sm flex items-center gap-2 transition"
             >
               <LayoutDashboard size={18} /> Admin
+            </button>
+          )}
+
+          {user?.role === "CASHIER" && shift && (
+            <button
+              onClick={() => setShowEndShift(true)}
+              className="bg-white/10 hover:bg-white/15 px-5 py-2 rounded-lg text-sm flex items-center gap-2 transition"
+            >
+              <Wallet size={18} /> End Shift
             </button>
           )}
 
@@ -721,6 +745,14 @@ export default function POS() {
           alreadyInCart={reservedSerialIds}
           onClose={() => { setPickerProduct(null); setPickerType(null); }}
           onAdd={addSerialLine}
+        />
+      )}
+
+      {showEndShift && shift && (
+        <EndShiftModal
+          shift={shift}
+          storeName={user?.store?.name || "Store"}
+          onClose={() => setShowEndShift(false)}
         />
       )}
 

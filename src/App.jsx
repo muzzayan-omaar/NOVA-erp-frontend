@@ -52,6 +52,7 @@ import SettingsModule from "./admin/modules/SettingsModule";
 import StaffCreationWizard from "./admin/modules/users/StaffCreationWizard";
 import StaffDetail from "./admin/modules/users/StaffDetail";
 import StoreDetail from "./admin/modules/stores/StoreDetail";
+import ShiftHistoryModule from "./admin/modules/shifts/ShiftHistoryModule";
 
 
 import AuthGate from "./guards/AuthGate";
@@ -247,6 +248,14 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+  path="shifts"
+  element={
+    <ProtectedRoute permission="audit">
+      <ShiftHistoryModule />
+    </ProtectedRoute>
+  }
+/>
 
           <Route
             path="payments"

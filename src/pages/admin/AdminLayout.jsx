@@ -22,6 +22,7 @@ import {
   ChevronDown,
   LifeBuoy,
   Settings,
+  History,
   
 } from "lucide-react";
 import useAuthStore from "../../store/useAuthStore";
@@ -219,6 +220,7 @@ export default function AdminLayout() {
   {
     title: "Oversight",
     items: [
+      { title: "Shift History", icon: History, path: "/admin/shifts", permission: "audit" },
       { title: "Pending Requests", icon: Inbox, path: "/admin/pending-requests", permission: "audit" },
       { title: "Bank Reconciliation", icon: Landmark, path: "/admin/reconciliation", permission: "audit" },
       { title: "Audit Log", icon: ShieldAlert, path: "/admin/audit", permission: "audit" },

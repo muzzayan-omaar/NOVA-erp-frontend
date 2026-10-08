@@ -54,6 +54,7 @@ import StaffDetail from "./admin/modules/users/StaffDetail";
 import StoreDetail from "./admin/modules/stores/StoreDetail";
 import ShiftHistoryModule from "./admin/modules/shifts/ShiftHistoryModule";
 import RapidScanEntry from "./admin/modules/onboarding/RapidScanEntry";
+import BulkProductImport from "./admin/modules/onboarding/BulkProductImport";
 
 
 import AuthGate from "./guards/AuthGate";
@@ -230,6 +231,14 @@ export default function App() {
   element={
     <ProtectedRoute permission="users">
       <StaffCreationWizard />
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="products/bulk-import"
+  element={
+    <ProtectedRoute permission="products">
+      <BulkProductImport />
     </ProtectedRoute>
   }
 />

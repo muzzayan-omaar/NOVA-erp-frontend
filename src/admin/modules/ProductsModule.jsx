@@ -15,6 +15,7 @@ import {
   X,
   Box,
   ScanLine,
+  FileSpreadsheet,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import ManageUnitsSerialsModal from "./products/ManageUnitsSerialsModal";
@@ -223,6 +224,12 @@ export default function ProductsModule() {
   className="bg-nova-900 text-white px-6 py-3 rounded-2xl flex items-center gap-2 hover:bg-nova-800 transition"
 >
   <ScanLine size={20} /> Rapid Scan Entry
+</button>
+<button
+  onClick={() => navigate("/admin/products/bulk-import")}
+  className="bg-nova-900 text-white px-6 py-3 rounded-2xl flex items-center gap-2 hover:bg-nova-800 transition"
+>
+  <FileSpreadsheet size={20} /> Bulk Import
 </button>
         <button
           onClick={openCreate}

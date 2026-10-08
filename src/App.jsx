@@ -53,6 +53,7 @@ import StaffCreationWizard from "./admin/modules/users/StaffCreationWizard";
 import StaffDetail from "./admin/modules/users/StaffDetail";
 import StoreDetail from "./admin/modules/stores/StoreDetail";
 import ShiftHistoryModule from "./admin/modules/shifts/ShiftHistoryModule";
+import RapidScanEntry from "./admin/modules/onboarding/RapidScanEntry";
 
 
 import AuthGate from "./guards/AuthGate";
@@ -253,6 +254,14 @@ export default function App() {
   element={
     <ProtectedRoute permission="audit">
       <ShiftHistoryModule />
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="products/rapid-entry"
+  element={
+    <ProtectedRoute permission="products">
+      <RapidScanEntry />
     </ProtectedRoute>
   }
 />

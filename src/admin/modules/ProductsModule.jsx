@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../../services/api";
 import {
   Plus,
@@ -13,6 +14,7 @@ import {
   Layers,
   X,
   Box,
+  ScanLine,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import ManageUnitsSerialsModal from "./products/ManageUnitsSerialsModal";
@@ -45,6 +47,7 @@ function formatMoney(n) {
 export default function ProductsModule() {
   const { user } = useAuthStore();
   const { confirm } = useConfirm();
+  const navigate = useNavigate();
 
   const [products, setProducts] = useState([]);
   const [lowStock, setLowStock] = useState([]);
@@ -215,6 +218,12 @@ export default function ProductsModule() {
         <h1 className="text-3xl font-bold flex items-center gap-3">
           <Package /> Products
         </h1>
+        <button
+  onClick={() => navigate("/admin/products/rapid-entry")}
+  className="bg-nova-900 text-white px-6 py-3 rounded-2xl flex items-center gap-2 hover:bg-nova-800 transition"
+>
+  <ScanLine size={20} /> Rapid Scan Entry
+</button>
         <button
           onClick={openCreate}
           className="bg-nova-gradient text-white px-6 py-3 rounded-2xl flex items-center gap-2 hover:opacity-90 transition"

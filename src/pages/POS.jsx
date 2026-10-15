@@ -196,116 +196,176 @@ export default function POS() {
     setSplitDraft({ method: "CASH", amount: "", reference: "" });
   };
 
-  /* ---------- Checkout ---------- */
 
-  const handleCheckout = async () => {
-    if (cart.length === 0 || checkoutLoading) return;
+/* ---------- Checkout ---------- */
 
-    if (splitMode) {
-      if (splitLines.length === 0) {
-        toast.error("Add at least one payment line");
-        return;
-      }
-      if (Math.abs(splitRemaining) > 1) {
-        toast.error(`Payment lines don't add up to the total (UGX ${splitRemaining.toLocaleString()} remaining)`);
-        return;
-      }
-      if (splitHasCredit && !selectedCustomerId) {
-        toast.error("Select a customer for the credit portion of this sale");
-        return;
-      }
-    } else if (paymentMethod === "CREDIT" && !selectedCustomerId) {
-      toast.error("Select a customer for this credit sale");
+const handleCheckout = async () => {
+  if (cart.length === 0 || checkoutLoading) return;
+
+  // ── Validation (unchanged) ──────────────────────────────────────
+  if (splitMode) {
+    if (splitLines.length === 0) {
+      toast.error("Add at least one payment line");
       return;
     }
-
-    setCheckoutLoading(true);
-
-    const clientReferenceId = generateClientId();
-
-    const payload = {
-      items: cart.map((item) => ({
-        productId: item.productId,
-        quantity: item.qty,
-        productUnitId: item.productUnitId,
-        productSerialId: item.productSerialId,
-      })),
-      discount: 0,
-      clientReferenceId,
-      customerId: splitMode
-        ? (splitHasCredit ? selectedCustomerId : null)
-        : (paymentMethod === "CREDIT" ? selectedCustomerId : null),
-      ...(splitMode
-        ? { payments: splitLines.map((l) => ({ method: l.method, amount: Number(l.amount), reference: l.reference || undefined })) }
-        : { paymentMethod }),
-    };
-
-    const displayMethod = splitMode ? "Split Payment" : paymentMethod;
-
-    try {
-      const res = await api.post("/sales", payload, { timeout: 8000 });
-
-      setLastSale({
-        ...res.data,
-        items: cart.map((c) => ({ name: `${c.name} (${c.unitLabel})`, qty: c.qty, sellingPrice: c.unitPrice })),
-        paymentMethod: displayMethod,
-        pending: false,
-      });
-
-      setShowReceipt(true);
-      setCart([]);
-      setSelectedCustomerId("");
-      setSplitLines([]);
-      toast.success(`Sale completed via ${displayMethod}`);
-
-      await fetchProducts();
-    } catch (err) {
-      console.error(err);
-
-      if (!err.response) {
-        addToQueue({ clientReferenceId, payload });
-
-        setProducts((prev) =>
-          prev.map((p) => {
-            const cartLinesForProduct = cart.filter((c) => c.productId === p.id);
-            if (cartLinesForProduct.length === 0) return p;
-            const baseUnitsUsed = cartLinesForProduct.reduce(
-              (sum, c) => sum + c.qty * (c.conversionFactor || 1),
-              0
-            );
-            return { ...p, stockQuantity: p.stockQuantity - baseUnitsUsed };
-          })
-        );
-
-        cart.forEach((c) => {
-          if (c.productSerialId) {
-            setReservedSerialIds((prev) => (prev.includes(c.productSerialId) ? prev : [...prev, c.productSerialId]));
-          }
-        });
-
-        setLastSale({
-          id: clientReferenceId,
-          totalAmount: total,
-          subtotal: total / 1.18,
-          vatAmount: total - total / 1.18,
-          items: cart.map((c) => ({ name: `${c.name} (${c.unitLabel})`, qty: c.qty, sellingPrice: c.unitPrice })),
-          paymentMethod: displayMethod,
-          pending: true,
-          createdAt: new Date().toISOString(),
-        });
-
-        setShowReceipt(true);
-        setCart([]);
-        setSelectedCustomerId("");
-        setSplitLines([]);
-        toast.success("You're offline — sale saved and will sync automatically");
-      } else {
-        toast.error(err.response?.data?.message || "Checkout failed");
-      }
-    } finally {
-      setCheckoutLoading(false);
+    if (Math.abs(splitRemaining) > 1) {
+      toast.error(
+        `Payment lines don't add up to the total (UGX ${splitRemaining.toLocaleString()} remaining)`
+      );
+      return;
     }
+    if (splitHasCredit && !selectedCustomerId) {
+      toast.error("Select a customer for the credit portion of this sale");
+      return;
+    }
+  } else if (paymentMethod === "CREDIT" && !selectedCustomerId) {
+    toast.error("Select a customer for this credit sale");
+    return;
+  }
+
+  // ── Snapshot everything we need before clearing the cart ────────
+  const clientReferenceId = generateClientId();
+  const checkoutCart = [...cart];
+  const checkoutTotal = total;
+  const checkoutSplitMode = splitMode;
+  const checkoutSplitLines = [...splitLines];
+  const checkoutPaymentMethod = paymentMethod;
+  const checkoutCustomerId = selectedCustomerId;
+  const displayMethod = checkoutSplitMode ? "Split Payment" : checkoutPaymentMethod;
+
+  const checkoutItems = checkoutCart.map((item) => ({
+    name: `${item.name} (${item.unitLabel})`,
+    qty: item.qty,
+    sellingPrice: item.unitPrice,
+  }));
+
+  const payload = {
+    items: checkoutCart.map((item) => ({
+      productId: item.productId,
+      quantity: item.qty,
+      productUnitId: item.productUnitId,
+      productSerialId: item.productSerialId,
+    })),
+    discount: 0,
+    clientReferenceId,
+    customerId: checkoutSplitMode
+      ? (checkoutSplitLines.some((l) => l.method === "CREDIT") ? checkoutCustomerId : null)
+      : (checkoutPaymentMethod === "CREDIT" ? checkoutCustomerId : null),
+    ...(checkoutSplitMode
+      ? {
+          payments: checkoutSplitLines.map((line) => ({
+            method: line.method,
+            amount: Number(line.amount),
+            reference: line.reference || undefined,
+          })),
+        }
+      : { paymentMethod: checkoutPaymentMethod }),
   };
+
+  // ── Optimistic UI: clear cart + show provisional receipt now ────
+  setCheckoutLoading(true);
+
+  setLastSale({
+    id: clientReferenceId,
+    totalAmount: checkoutTotal,
+    subtotal: checkoutTotal / 1.18,
+    vatAmount: checkoutTotal - checkoutTotal / 1.18,
+    items: checkoutItems,
+    paymentMethod: displayMethod,
+    pending: true,          // marks it as not yet confirmed by server
+    createdAt: new Date().toISOString(),
+  });
+  setShowReceipt(true);
+
+  setCart([]);
+  setSelectedCustomerId("");
+  setSplitLines([]);
+  setSplitMode(false);
+  setReservedSerialIds([]);
+
+  // Brief toast so the cashier knows the sale is being processed
+  toast.success("Sale submitted…", { duration: 1500 });
+
+  try {
+    const apiStartedAt = performance.now();
+    console.time("[NOVRR POS] Sale API");
+
+    const res = await api.post("/sales", payload, { timeout: 15000 });
+
+    console.timeEnd("[NOVRR POS] Sale API");
+    console.log(
+      `[NOVRR POS] Server response received in ${Math.round(performance.now() - apiStartedAt)} ms`
+    );
+
+    // Upgrade the provisional receipt with the real server data
+    setLastSale({
+      ...res.data,
+      items: checkoutItems,
+      paymentMethod: displayMethod,
+      pending: false,
+    });
+
+    toast.success(`Sale completed via ${displayMethod}`);
+
+    // Background product refresh – never block the UI
+    void fetchProducts().catch((err) => {
+      console.error("Background product refresh failed:", err);
+    });
+  } catch (err) {
+    console.error("Checkout error:", err);
+
+    if (!err.response) {
+      // Network failure / timeout → queue for later sync
+      addToQueue({ clientReferenceId, payload });
+
+      // Optimistically decrement local stock
+      setProducts((prev) =>
+        prev.map((product) => {
+          const cartLinesForProduct = checkoutCart.filter(
+            (item) => item.productId === product.id
+          );
+          if (cartLinesForProduct.length === 0) return product;
+
+          const baseUnitsUsed = cartLinesForProduct.reduce(
+            (sum, item) => sum + item.qty * (item.conversionFactor || 1),
+            0
+          );
+
+          return {
+            ...product,
+            stockQuantity: product.stockQuantity - baseUnitsUsed,
+          };
+        })
+      );
+
+      // Keep the provisional receipt (already showing) and mark it pending
+      setLastSale((prev) => (prev ? { ...prev, pending: true } : prev));
+
+      toast.success("You're offline — sale saved and will sync automatically");
+    } else {
+      // Hard server error → restore the cart and close the provisional receipt
+      setCart(checkoutCart);
+      setSelectedCustomerId(checkoutCustomerId);
+      setSplitLines(checkoutSplitLines);
+      setSplitMode(checkoutSplitMode);
+      setShowReceipt(false);
+      setLastSale(null);
+
+      // Restore reserved serials
+      const serialIds = checkoutCart
+        .map((item) => item.productSerialId)
+        .filter(Boolean);
+      if (serialIds.length) {
+        setReservedSerialIds((prev) => [...new Set([...prev, ...serialIds])]);
+      }
+
+      toast.error(err.response?.data?.message || "Checkout failed");
+    }
+  } finally {
+    setCheckoutLoading(false);
+  }
+};
+
 
   /* ---------- Barcode / scan resolution ---------- */
 
@@ -756,7 +816,12 @@ export default function POS() {
         />
       )}
 
-      {checkoutLoading && <ProcessingOverlay message="Completing your sale..." />}
+      {checkoutLoading && (
+  <div className="fixed bottom-6 right-6 bg-nova-900 text-white px-4 py-2 rounded-xl shadow-lg flex items-center gap-2 text-sm z-50">
+    <Loader2 className="animate-spin" size={16} />
+    Confirming sale…
+  </div>
+)}
     </div>
   );
 }

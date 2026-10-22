@@ -1,6 +1,7 @@
 import { useNavigate, Outlet, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import api from "../../services/api";
+import socket from "../../services/socket";
 import {
   LayoutDashboard,
   ClipboardList,
@@ -23,7 +24,6 @@ import {
   LifeBuoy,
   Settings,
   History,
-  
 } from "lucide-react";
 import useAuthStore from "../../store/useAuthStore";
 import toast from "react-hot-toast";
@@ -88,6 +88,26 @@ export default function AdminLayout() {
     const interval = setInterval(fetchNotifications, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  // Real-time notifications via socket
+  useEffect(() => {
+    if (!user) return;
+
+    const onNotification = (notification) => {
+      setNotifications((prev) => [notification, ...prev]);
+      toast(notification.title);
+    };
+
+    socket.on("notification:new", onNotification);
+    // Rooms are chosen by the server at connect time, so reconnect
+    // whenever the active store changes.
+    socket.disconnect().connect();
+
+    return () => {
+      socket.off("notification:new", onNotification);
+      socket.disconnect();
+    };
+  }, [user?.id, user?.activeStoreId]);
 
   useEffect(() => {
     const fetchStores = async () => {
@@ -177,69 +197,69 @@ export default function AdminLayout() {
   };
 
   const menuGroups = [
-  {
-    title: "Overview",
-    items: [
-      { title: "Dashboard", icon: LayoutDashboard, path: "/admin", permission: "dashboard" },
-    ],
-  },
-  {
-    title: "Business",
-    items: [
-      { title: "Stores", icon: Building2, path: "/admin/stores", permission: "stores" },
-      { title: "Users", icon: UserCog, path: "/admin/users", permission: "users" },
-      { title: "Payroll", icon: Receipt, path: "/admin/payroll", permission: "payroll" },
-    ],
-  },
-  {
-    title: "Inventory",
-    items: [
-      { title: "Products", icon: Package, path: "/admin/products", permission: "products" },
-      { title: "Inventory", icon: Boxes, path: "/admin/inventory", permission: "inventory" },
-      { title: "Stock Count", icon: ClipboardList, path: "/admin/stock-count", permission: "inventory" },
-      { title: "Suppliers", icon: Truck, path: "/admin/suppliers", permission: "suppliers" },
-    ],
-  },
-  {
-    title: "Sales",
-    items: [
-      { title: "Sales", icon: ShoppingCart, path: "/admin/sales", permission: "sales" },
-      { title: "Quotations", icon: FileText, path: "/admin/quotes", permission: "sales" },
-      { title: "Customers", icon: Users, path: "/admin/customers", permission: "customers" },
-      { title: "Payments", icon: CreditCard, path: "/admin/payments", permission: "payments" },
-    ],
-  },
-  {
-    title: "Finance",
-    items: [
-      { title: "Expenses", icon: DollarSign, path: "/admin/expenses", permission: "expenses" },
-      { title: "Billing", icon: CreditCard, path: "/admin/billing", permission: "billing" },
-      { title: "Reports", icon: FileText, path: "/admin/reports", permission: "reports" },
-    ],
-  },
-  {
-    title: "Oversight",
-    items: [
-      { title: "Shift History", icon: History, path: "/admin/shifts", permission: "audit" },
-      { title: "Pending Requests", icon: Inbox, path: "/admin/pending-requests", permission: "audit" },
-      { title: "Bank Reconciliation", icon: Landmark, path: "/admin/reconciliation", permission: "audit" },
-      { title: "Audit Log", icon: ShieldAlert, path: "/admin/audit", permission: "audit" },
-      { title: "Pending Stock Reviews", icon: Inbox, path: "/admin/stock-count/pending", permission: "audit" },
-    ],
-  },
-  {
-    title: "Help",
-    items: [
-      { title: "Support", icon: LifeBuoy, path: "/admin/support", permission: "support" },
-    ],
-  },
-  {
-    title: "Settings",
-    items: [
-      { title: "Settings", icon: Settings, path: "/admin/settings", permission: "dashboard" },
-    ],
-  },
-];
+    {
+      title: "Overview",
+      items: [
+        { title: "Dashboard", icon: LayoutDashboard, path: "/admin", permission: "dashboard" },
+      ],
+    },
+    {
+      title: "Business",
+      items: [
+        { title: "Stores", icon: Building2, path: "/admin/stores", permission: "stores" },
+        { title: "Users", icon: UserCog, path: "/admin/users", permission: "users" },
+        { title: "Payroll", icon: Receipt, path: "/admin/payroll", permission: "payroll" },
+      ],
+    },
+    {
+      title: "Inventory",
+      items: [
+        { title: "Products", icon: Package, path: "/admin/products", permission: "products" },
+        { title: "Inventory", icon: Boxes, path: "/admin/inventory", permission: "inventory" },
+        { title: "Stock Count", icon: ClipboardList, path: "/admin/stock-count", permission: "inventory" },
+        { title: "Suppliers", icon: Truck, path: "/admin/suppliers", permission: "suppliers" },
+      ],
+    },
+    {
+      title: "Sales",
+      items: [
+        { title: "Sales", icon: ShoppingCart, path: "/admin/sales", permission: "sales" },
+        { title: "Quotations", icon: FileText, path: "/admin/quotes", permission: "sales" },
+        { title: "Customers", icon: Users, path: "/admin/customers", permission: "customers" },
+        { title: "Payments", icon: CreditCard, path: "/admin/payments", permission: "payments" },
+      ],
+    },
+    {
+      title: "Finance",
+      items: [
+        { title: "Expenses", icon: DollarSign, path: "/admin/expenses", permission: "expenses" },
+        { title: "Billing", icon: CreditCard, path: "/admin/billing", permission: "billing" },
+        { title: "Reports", icon: FileText, path: "/admin/reports", permission: "reports" },
+      ],
+    },
+    {
+      title: "Oversight",
+      items: [
+        { title: "Shift History", icon: History, path: "/admin/shifts", permission: "audit" },
+        { title: "Pending Requests", icon: Inbox, path: "/admin/pending-requests", permission: "audit" },
+        { title: "Bank Reconciliation", icon: Landmark, path: "/admin/reconciliation", permission: "audit" },
+        { title: "Audit Log", icon: ShieldAlert, path: "/admin/audit", permission: "audit" },
+        { title: "Pending Stock Reviews", icon: Inbox, path: "/admin/stock-count/pending", permission: "audit" },
+      ],
+    },
+    {
+      title: "Help",
+      items: [
+        { title: "Support", icon: LifeBuoy, path: "/admin/support", permission: "support" },
+      ],
+    },
+    {
+      title: "Settings",
+      items: [
+        { title: "Settings", icon: Settings, path: "/admin/settings", permission: "dashboard" },
+      ],
+    },
+  ];
 
   const handleGroupToggle = (title) => setOpenGroup(title);
 

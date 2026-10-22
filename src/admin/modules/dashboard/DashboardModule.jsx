@@ -31,7 +31,6 @@ import jsPDF from "jspdf";
 import "jspdf-autotable";
 
 import toast from "react-hot-toast";
-import socket from "../../../services/socket";
 
 import useAuthStore from "../../../store/useAuthStore";
 import RevenueChart from "./components/RevenueChart";
@@ -41,8 +40,6 @@ import LowStockAlert from "./components/LowStockAlert";
 import TopProductsCard from "./components/TopProductsCard";
 import FinanceSummaryCard from "./components/FinanceSummaryCard";
 import InventoryInsightsCard from "./components/InventoryInsightsCard";
-
-
 
 export default function DashboardModule() {
 
@@ -55,32 +52,6 @@ export default function DashboardModule() {
   const [selectedStore,setSelectedStore] = useState("ALL");
   const [loading,setLoading] = useState(true);
   const [refreshing,setRefreshing] = useState(false);
-
-  useEffect(()=>{
-    socket.emit(
-      "joinRooms",
-      {
-        companyId:user.companyId,
-        storeId: user.activeStoreId || user.storeId,
-        userId:user.id
-      }
-    );
-
-    socket.on(
-      "notification:new",
-      (notification)=>{
-        setNotifications(prev=>[
-          notification,
-          ...prev
-        ]);
-        toast(notification.title);
-      }
-    );
-
-    return ()=>{
-      socket.off("notification:new");
-    };
-  },[user]);
 
   // =========================
   // FETCH STORES

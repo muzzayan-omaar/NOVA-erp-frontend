@@ -1,3 +1,4 @@
+import { esc } from "./escapeHtml.js";
 const METHOD_LABELS = {
   CASH: "Cash",
   MOBILE_MONEY: "Mobile Money",
@@ -11,11 +12,11 @@ export const printShiftReports = (shift, cashierName, storeName) => {
   const printWindow = window.open("", "_blank", "width=380,height=600");
 
   const methodRows = Object.entries(shift.totalByMethod || {})
-    .map(([method, amount]) => `<div class="row"><span>${METHOD_LABELS[method] || method}</span><span>UGX ${amount.toLocaleString()}</span></div>`)
+    .map(([method, amount]) => `<div class="row"><span>${esc(METHOD_LABELS[method] || method)}</span><span>UGX ${amount.toLocaleString()}</span></div>`)
     .join("");
 
   const productRows = (shift.productMix || [])
-    .map((p) => `<div class="row"><span>${p.name} × ${p.qty}</span><span>UGX ${p.revenue.toLocaleString()}</span></div>`)
+    .map((p) => `<div class="row"><span>${esc(p.name)} × ${esc(p.qty)}</span><span>UGX ${p.revenue.toLocaleString()}</span></div>`)
     .join("");
 
   const varianceLabel = shift.cashVariance < 0 ? "SHORTAGE" : shift.cashVariance > 0 ? "OVERAGE" : "BALANCED";
@@ -39,8 +40,8 @@ export const printShiftReports = (shift, cashierName, storeName) => {
       <body onload="window.print()">
         <h2>NOVA ERP</h2>
         <div class="meta">
-          ${storeName}<br/>
-          Cashier: ${cashierName}<br/>
+          ${esc(storeName)}<br/>
+          Cashier: ${esc(cashierName)}<br/>
           ${new Date(shift.openedAt).toLocaleString()} —<br/>${new Date(shift.closedAt || Date.now()).toLocaleString()}
         </div>
 

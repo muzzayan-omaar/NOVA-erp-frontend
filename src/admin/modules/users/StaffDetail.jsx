@@ -1,5 +1,7 @@
+
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { esc } from "../../../utils/escapeHtml";
 import api from "../../../services/api";
 import toast from "react-hot-toast";
 import { useConfirm } from "../../../components/ui/ConfirmProvider";
@@ -170,7 +172,7 @@ export default function StaffDetail() {
     printWindow.document.write(`
       <html>
         <head>
-          <title>${staff.name} — Employee Card</title>
+          <title>${esc(staff.name)} — Employee Card</title>
           <style>
             body { font-family: Arial, sans-serif; margin: 0; padding: 24px; background: #0F1B33; }
             .card { width: 400px; background: white; border-radius: 16px; overflow: hidden; display: flex; }
@@ -187,16 +189,12 @@ export default function StaffDetail() {
           <div class="card">
             <div class="stripe"></div>
             <div class="content">
-              ${
-                profile.photoUrl
-                  ? `<img src="${profile.photoUrl}" class="photo" />`
-                  : `<div class="photo"></div>`
-              }
+              ${profile.photoUrl && profile.photoUrl.startsWith("data:image/") ? `<img src="${esc(profile.photoUrl)}" class="photo" />` : `<div class="photo"></div>`}
               <div class="details">
-                <h2>${staff.name}</h2>
-                <p>${profile.position || staff.role.replace(/_/g, " ")}</p>
-                <p>${staff.store?.name || ""}</p>
-                <p class="staffid">ID: ${profile.staffId || "—"}</p>
+                <h2>${esc(staff.name)}</h2>
+                <p>${esc(profile.position) || esc(staff.role.replace(/_/g, " "))}</p>
+                <p>${esc(staff.store?.name) || ""}</p>
+                <p class="staffid">ID: ${esc(profile.staffId) || "—"}</p>
                 <p class="brand">NOVA ERP — Employee Identification</p>
               </div>
             </div>

@@ -1,0 +1,6 @@
+src/admin/modules/support/SupportThreadDetail.jsx:241:                    {/* Avatar + name row for Nova messages */}
+src/admin/modules/users/StaffDetail.jsx:198:                <p class="brand">NOVA ERP — Employee Identification</p>
+src/components/auth/TipCarousel.jsx:9:    tip: "Scan any barcode — Nova knows if it’s a bundle, a single piece, or a specific serial number automatically.",
+src/utils/printShiftReports.js:41:        <h2>NOVA ERP</h2>
+tailwind.config.js:25:  nova: {
+tailwind.config.js:39:  'nova': '0 10px 40px -10px rgba(15, 27, 51, 0.35)',

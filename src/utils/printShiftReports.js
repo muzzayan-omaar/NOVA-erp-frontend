@@ -38,7 +38,7 @@ export const printShiftReports = (shift, cashierName, storeName) => {
         </style>
       </head>
       <body onload="window.print()">
-        <h2>NOVA ERP</h2>
+        <h2>NOVRR ERP</h2>
         <div class="meta">
           ${esc(storeName)}<br/>
           Cashier: ${esc(cashierName)}<br/>

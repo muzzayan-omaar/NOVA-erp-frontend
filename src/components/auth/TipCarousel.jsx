@@ -6,7 +6,7 @@ const SLIDES = [
     icon: ShoppingCart,
     accent: "from-nova-cyan to-nova-blue",
     title: "Sell with total accuracy",
-    tip: "Scan any barcode — Nova knows if it’s a bundle, a single piece, or a specific serial number automatically.",
+    tip: "Scan any barcode — Novrr knows if it’s a bundle, a single piece, or a specific serial number automatically.",
     screenshotSrc: null,
   },
   {

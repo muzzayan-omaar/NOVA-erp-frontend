@@ -195,7 +195,7 @@ export default function StaffDetail() {
                 <p>${esc(profile.position) || esc(staff.role.replace(/_/g, " "))}</p>
                 <p>${esc(staff.store?.name) || ""}</p>
                 <p class="staffid">ID: ${esc(profile.staffId) || "—"}</p>
-                <p class="brand">NOVA ERP — Employee Identification</p>
+                <p class="brand">NOVRR ERP — Employee Identification</p>
               </div>
             </div>
           </div>

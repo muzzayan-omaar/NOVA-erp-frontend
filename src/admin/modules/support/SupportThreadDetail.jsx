@@ -238,7 +238,7 @@ export default function SupportThreadDetail() {
                       isMine ? "items-end" : "items-start"
                     } flex flex-col gap-1`}
                   >
-                    {/* Avatar + name row for Nova messages */}
+                    {/* Avatar + name row for Novrr messages */}
                     {!isMine && (
   <div className="flex items-center gap-2 px-1">
     <div className="w-7 h-7 rounded-full bg-white border border-slate-100 flex items-center justify-center overflow-hidden p-0.5">

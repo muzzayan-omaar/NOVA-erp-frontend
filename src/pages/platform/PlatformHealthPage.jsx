@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import platformApi from "../../services/platformApi";
 import HeartMonitor, { HEART_STATUSES } from "../../components/platform/HeartMonitor";
+import IntegrityPanel from "../../components/platform/IntegrityPanel";
 
 const ICONS = {
   server: Server,
@@ -271,7 +272,7 @@ export function HealthView({ report, error, loading, refreshing, auto, onToggleA
           </div>
         </>
       )}
-
+        <IntegrityPanel />
       <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
         <p>
           This page can only report while the server is answering. Keep an outside uptime monitor pinging

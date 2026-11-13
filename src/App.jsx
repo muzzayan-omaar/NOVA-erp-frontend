@@ -7,6 +7,7 @@ import AdminLayout from "./pages/admin/AdminLayout";
 
 /* MODULES */
 import DashboardModule from "./admin/modules/dashboard/DashboardModule";
+import PlatformHealthPage from "./pages/platform/PlatformHealthPage";
 import ProductsModule from "./admin/modules/ProductsModule";
 import InventoryModule from "./admin/modules/InventoryModule";
 import SalesModule from "./admin/modules/SalesModule";
@@ -373,7 +374,7 @@ export default function App() {
 <Route path="/admin/stores/:id" element={<StoreDetail />} />
         </Route>
 
-        {/* Platform Area (sibling of admin, not nested) */}
+                {/* Platform Area (sibling of admin, not nested) */}
         <Route
           path="/platform"
           element={
@@ -388,6 +389,7 @@ export default function App() {
           <Route path="analytics" element={<PlatformAnalyticsPage />} />
           <Route path="catalog" element={<PlatformCatalogPage />} />
           <Route path="broadcast" element={<PlatformBroadcastPage />} />
+          <Route path="health" element={<PlatformHealthPage />} />
           <Route path="audit-log" element={<PlatformAuditLogPage />} />
           <Route path="support" element={<PlatformSupportInboxPage />} />
           <Route path="support/:id" element={<PlatformSupportThreadDetailPage />} />

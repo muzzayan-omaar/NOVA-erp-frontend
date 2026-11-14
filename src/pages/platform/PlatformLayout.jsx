@@ -4,13 +4,13 @@ import { ShieldCheck, Sparkles, LogOut, Inbox, Building2, TrendingUp, Tag, LifeB
 import logo from "../../assets/logo.png"; 
 
 const menuItems = [
+    { title: "System Health", icon: Activity, path: "/platform/health" },
   { title: "Onboard Company", icon: Sparkles, path: "/platform/onboard" },
   { title: "Companies", icon: Building2, path: "/platform/companies" },
   { title: "Payments", icon: Inbox, path: "/platform/payments" },
   { title: "Analytics", icon: TrendingUp, path: "/platform/analytics" },
   { title: "Catalog", icon: CreditCard, path: "/platform/catalog" },
   { title: "Broadcast", icon: Megaphone, path: "/platform/broadcast" },
-  { title: "System Health", icon: Activity, path: "/platform/health" },
   { title: "Audit Log", icon: ShieldAlert, path: "/platform/audit-log" },
   { title: "Support", icon: LifeBuoy, path: "/platform/support" },
 ];

@@ -81,8 +81,13 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
-        useAuthStore.getState().logout();
-        window.location.href = "/login";
+        // Only a genuine "this session is invalid" answer ends the session.
+        // A server hiccup or lost network must not sign anyone out.
+        const status = refreshError.response?.status;
+        if (status === 401 || status === 403) {
+          useAuthStore.getState().logout();
+          window.location.href = "/login";
+        }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

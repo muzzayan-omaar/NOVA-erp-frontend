@@ -56,6 +56,7 @@ import StoreDetail from "./admin/modules/stores/StoreDetail";
 import ShiftHistoryModule from "./admin/modules/shifts/ShiftHistoryModule";
 import RapidScanEntry from "./admin/modules/onboarding/RapidScanEntry";
 import BulkProductImport from "./admin/modules/onboarding/BulkProductImport";
+import SmartImportPage from "./admin/modules/onboarding/SmartImportPage";
 
 
 import AuthGate from "./guards/AuthGate";
@@ -240,6 +241,14 @@ export default function App() {
   element={
     <ProtectedRoute permission="products">
       <BulkProductImport />
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="products/smart-import"
+  element={
+    <ProtectedRoute permission="products">
+      <SmartImportPage />
     </ProtectedRoute>
   }
 />

@@ -16,6 +16,7 @@ import {
   Box,
   ScanLine,
   FileSpreadsheet,
+  Sparkles,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import ManageUnitsSerialsModal from "./products/ManageUnitsSerialsModal";
@@ -215,29 +216,41 @@ export default function ProductsModule() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-wrap justify-between items-center gap-3">
-        <h1 className="text-3xl font-bold flex items-center gap-3">
-          <Package /> Products
-        </h1>
-        <button
-  onClick={() => navigate("/admin/products/rapid-entry")}
-  className="bg-nova-900 text-white px-6 py-3 rounded-2xl flex items-center gap-2 hover:bg-nova-800 transition"
->
-  <ScanLine size={20} /> Rapid Scan Entry
-</button>
-<button
-  onClick={() => navigate("/admin/products/bulk-import")}
-  className="bg-nova-900 text-white px-6 py-3 rounded-2xl flex items-center gap-2 hover:bg-nova-800 transition"
->
-  <FileSpreadsheet size={20} /> Bulk Import
-</button>
-        <button
-          onClick={openCreate}
-          className="bg-nova-gradient text-white px-6 py-3 rounded-2xl flex items-center gap-2 hover:opacity-90 transition"
-        >
-          <Plus size={20} /> New Product
-        </button>
-      </div>
+<div className="flex flex-wrap justify-between items-center gap-3">
+  <h1 className="text-3xl font-bold flex items-center gap-3">
+    <Package /> Products
+  </h1>
+
+  <div className="flex flex-wrap gap-2">
+    <button
+      onClick={() => navigate("/admin/products/rapid-entry")}
+      className="bg-nova-900 text-white px-6 py-3 rounded-2xl flex items-center gap-2 hover:bg-nova-800 transition"
+    >
+      <ScanLine size={20} /> Rapid Scan Entry
+    </button>
+
+    <button
+      onClick={() => navigate("/admin/products/bulk-import")}
+      className="bg-nova-900 text-white px-6 py-3 rounded-2xl flex items-center gap-2 hover:bg-nova-800 transition"
+    >
+      <FileSpreadsheet size={20} /> Bulk Import
+    </button>
+
+    <button
+      onClick={() => navigate("/admin/products/smart-import")}
+      className="bg-nova-900 text-white px-6 py-3 rounded-2xl flex items-center gap-2 hover:bg-nova-800 transition"
+    >
+      <Sparkles size={20} /> Smart Import
+    </button>
+
+    <button
+      onClick={openCreate}
+      className="bg-nova-gradient text-white px-6 py-3 rounded-2xl flex items-center gap-2 hover:opacity-90 transition"
+    >
+      <Plus size={20} /> New Product
+    </button>
+  </div>
+</div>
 
       {/* Low stock banner */}
       {lowStock.length > 0 && (

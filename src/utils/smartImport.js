@@ -56,6 +56,36 @@ const normalizeHeader = (h) =>
     .replace(/\(.*?\)/g, "") // "Selling Price (UGX)" -> "selling price"
     .replace(/[^a-z0-9]/g, "");
 
+/* -------- columns we recognise but NOVRR can't store yet -------- */
+
+// Listed back to the user so nothing is dropped silently.
+export const UNSUPPORTED_FIELDS = [
+  { label: "Description", synonyms: ["description", "desc", "details"] },
+  { label: "Brand", synonyms: ["brand", "make", "manufacturer"] },
+  { label: "Model", synonyms: ["model", "modelno", "modelnumber"] },
+  { label: "Reorder level", synonyms: ["reorderlevel", "reorderqty", "reorderquantity", "minstock", "minimumstock", "minqty"] },
+  { label: "Warranty", synonyms: ["warranty", "warrantymonths", "warrantyperiod"] },
+  { label: "Supplier", synonyms: ["supplier", "suppliername", "vendor"] },
+  { label: "Serial tracking flag", synonyms: ["trackserial", "serialised", "serialized", "isserialized", "hasserial"] },
+  { label: "Serial numbers", synonyms: ["serialnumbers", "serialnumber", "serials", "serialno", "serialnos", "imei"] },
+];
+
+const UNSUPPORTED_LOOKUP = (() => {
+  const map = new Map();
+  for (const f of UNSUPPORTED_FIELDS) for (const syn of f.synonyms) if (!map.has(syn)) map.set(syn, f.label);
+  return map;
+})();
+
+export const unusedColumns = (headers, mapping) => {
+  const used = new Set(Object.values(mapping).map((m) => m.index));
+  const out = [];
+  headers.forEach((h, index) => {
+    if (used.has(index) || String(h).trim() === "") return;
+    out.push({ index, name: h, recognisedAs: UNSUPPORTED_LOOKUP.get(normalizeHeader(h)) || null });
+  });
+  return out;
+};
+
 /* ----------------------------- decoding ----------------------------- */
 
 export const decodeFileBuffer = (buffer) => {
@@ -193,6 +223,27 @@ export const detectHeaderRow = (rows) => {
     (row) => row.filter((c) => c !== "").length >= 2 && row.filter((c) => c !== "" && Number.isNaN(Number(c.replace(/,/g, "")))).length >= Math.ceil(row.filter((c) => c !== "").length / 2)
   );
   return { index: Math.max(fallback, 0), recognised: false };
+};
+
+// A file whose headings are written as words separated by spaces, with no
+// commas or semicolons between them. Usually a table copied out of a chat or
+// document instead of exported. We refuse it, because guessing where one
+// column ends would corrupt the data.
+export const diagnoseUnseparated = (text) => {
+  const lines = text.split(/\r\n|\n|\r/).map((l) => l.trim()).filter(Boolean);
+  const known = (t) => SYNONYM_LOOKUP.has(normalizeHeader(t)) || UNSUPPORTED_LOOKUP.has(normalizeHeader(t));
+
+  for (let i = 0; i < Math.min(lines.length, 6); i++) {
+    const tokens = lines.slice(i, i + 3).join(" ").split(/[\s,;|\t]+/).filter(Boolean);
+    const hits = [...new Set(tokens.filter(known))];
+    if (hits.length >= 5) {
+      return {
+        headingWords: hits.slice(0, 8),
+        sampleLines: lines.slice(0, 6).map((l) => (l.length > 140 ? l.slice(0, 140) + "…" : l)),
+      };
+    }
+  }
+  return null;
 };
 
 export const suggestMapping = (headers) => {
@@ -381,13 +432,21 @@ export const analyzeCsvBuffer = (buffer) => {
     return { empty: true, encoding, delimiter, warnings: ["The file is empty."], headers: [], dataRows: [], mapping: {} };
   }
 
-  const { index: headerIndex, recognised } = detectHeaderRow(rows);
+    const { index: headerIndex, recognised } = detectHeaderRow(rows);
+
+  if (!recognised) {
+    const problem = diagnoseUnseparated(text);
+    if (problem) {
+      return { empty: false, broken: true, encoding, delimiter, problem, warnings: [], headers: [], dataRows: [], rowCount: 0, mapping: {} };
+    }
+  }
   const headers = rows[headerIndex] || [];
   const dataRows = rows.slice(headerIndex + 1).filter((r) => r.some((c) => c !== ""));
   const mapping = suggestMapping(headers);
 
-  if (headerIndex > 0) warnings.push(`Ignored ${headerIndex} title row${headerIndex === 1 ? "" : "s"} above the column headings (row ${headerIndex + 1}).`);
-  if (!recognised) warnings.push("We couldn't recognise the column headings, so please check each column below.");
+    if (recognised && headerIndex > 0) warnings.push(`Ignored ${headerIndex} title row${headerIndex === 1 ? "" : "s"} above the column headings (row ${headerIndex + 1}).`);
+  if (!recognised) warnings.push(`We couldn't recognise the column headings. We took row ${headerIndex + 1} as the headings, so please check every column below.`);
+
   if (delimiter !== ",") warnings.push(`This file separates columns with a ${DELIMITER_NAMES[delimiter]}, not a comma. That's fine, we read it.`);
   if (encoding.startsWith("utf-16") || encoding === "windows-1252") warnings.push(`This file uses ${encoding} text encoding. We converted it, so names should read correctly. Check any accented characters.`);
 

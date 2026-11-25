@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Upload, FileSpreadsheet, Download, AlertTriangle, CheckCircle2 } from "lucide-react";
-import { FIELD_DEFS, analyzeCsvBuffer, applyMapping, buildTemplateCsv } from "../../../utils/smartImport";
+import { FIELD_DEFS, analyzeCsvBuffer, applyMapping, buildTemplateCsv, unusedColumns } from "../../../utils/smartImport";
 
 const MAX_BYTES = 25 * 1024 * 1024;
 
@@ -17,9 +17,21 @@ const downloadTemplate = () => {
 
 const hasError = (r) => r.issues.some((i) => i.level === "error");
 
-function MappingChip({ def, entry }) {
-  if (entry && entry.confident) return <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">Matched</span>;
-  if (entry) return <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">Please confirm</span>;
+function MappingChip({ def, entry, onConfirm }) {
+  if (entry && entry.confident) {
+    return <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">Matched</span>;
+  }
+  if (entry) {
+    return (
+      <button
+        onClick={onConfirm}
+        title="Click to accept this match"
+        className="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700 hover:bg-amber-200"
+      >
+        Please confirm
+      </button>
+    );
+  }
   if (def.required) return <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">Needed</span>;
   return <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-500">Not in file</span>;
 }
@@ -27,12 +39,14 @@ function MappingChip({ def, entry }) {
 const fmt = (v) => (v === null || v === undefined ? "—" : typeof v === "number" ? v.toLocaleString("en-US") : v);
 
 // Purely presentational, so it can be rendered without a browser.
-export function SmartImportView({ fileName, analysis, mapping, onMappingChange, normalized, error, onFile, onBack }) {
+export function SmartImportView({ fileName, analysis, mapping, onMappingChange, onMappingConfirm, normalized, error, onFile, onBack }) {
   const rows = normalized?.rows || [];
   const errorRows = rows.filter(hasError).length;
   const warningRows = rows.filter((r) => !hasError(r) && r.issues.length > 0).length;
   const fineRows = rows.length - errorRows - warningRows;
   const nameMapped = Boolean(mapping.name);
+  const readable = analysis && !analysis.empty && !analysis.broken;
+  const unused = readable ? unusedColumns(analysis.headers, mapping) : [];
 
   const previewRows = [
     ...rows.filter(hasError),
@@ -80,7 +94,36 @@ export function SmartImportView({ fileName, analysis, mapping, onMappingChange, 
         <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl px-5 py-4 text-sm">This file is empty. Check you chose the right one.</div>
       )}
 
-      {analysis && !analysis.empty && (
+      {analysis && analysis.broken && (
+        <div className="bg-white rounded-3xl shadow border border-red-200 p-8 space-y-4">
+          <h2 className="font-bold text-red-700 flex items-center gap-2">
+            <AlertTriangle size={20} /> This file isn't a proper CSV, so we haven't read it
+          </h2>
+          <p className="text-sm text-slate-600">
+            The column headings ({analysis.problem.headingWords.join(", ")}…) are written as words separated by spaces, with no commas or
+            semicolons between them, and the lines look wrapped across several rows. That usually happens when a table is copied out of a chat
+            or document instead of being exported.
+          </p>
+          <p className="text-sm text-slate-600">
+            We can't tell where one column ends and the next begins, for example where a product name stops and its description starts. Guessing
+            would put values in the wrong columns, so we stopped. Nothing was imported.
+          </p>
+          <div>
+            <p className="text-xs font-semibold text-slate-500 mb-2">What we saw at the start of your file</p>
+            <pre className="bg-slate-900 text-slate-100 text-xs rounded-2xl p-4 overflow-x-auto whitespace-pre-wrap">{analysis.problem.sampleLines.join("\n")}</pre>
+          </div>
+          <div className="bg-slate-50 rounded-2xl p-4 text-sm text-slate-700">
+            <p className="font-semibold mb-2">How to fix it</p>
+            <ul className="space-y-1 list-disc ml-5">
+              <li>If it came from Excel or Google Sheets, use Save As or Download as CSV (comma separated). Don't copy and paste.</li>
+              <li>If a person or a tool generated it, ask for a real CSV file: one product per line, commas between columns, and quotes around any text that contains a comma.</li>
+              <li>Or download our template and paste your products into it.</li>
+            </ul>
+          </div>
+        </div>
+      )}
+
+      {readable && (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
@@ -107,7 +150,9 @@ export function SmartImportView({ fileName, analysis, mapping, onMappingChange, 
 
           <div className="bg-white rounded-3xl shadow p-8">
             <h2 className="font-bold text-lg mb-1">Which column is which?</h2>
-            <p className="text-sm text-slate-500 mb-5">We matched what we could. Anything marked "Please confirm" could mean more than one thing, so check it.</p>
+            <p className="text-sm text-slate-500 mb-5">
+              We matched what we could. Click "Please confirm" to accept a suggestion that could mean more than one thing, or pick a different column.
+            </p>
             <div className="space-y-3">
               {FIELD_DEFS.map((def) => {
                 const entry = mapping[def.key];
@@ -126,12 +171,33 @@ export function SmartImportView({ fileName, analysis, mapping, onMappingChange, 
                         <option key={i} value={i}>{`Column ${i + 1}: ${h || "(blank)"}`}</option>
                       ))}
                     </select>
-                    <MappingChip def={def} entry={entry} />
+                    <MappingChip def={def} entry={entry} onConfirm={() => onMappingConfirm(def.key)} />
                   </div>
                 );
               })}
             </div>
           </div>
+
+          {unused.length > 0 && (
+            <div className="bg-white rounded-3xl shadow border border-slate-100 p-6">
+              <h2 className="font-bold mb-1">{unused.length} {unused.length === 1 ? "column" : "columns"} in your file won't be imported</h2>
+              <p className="text-sm text-slate-500 mb-4">
+                NOVRR doesn't store these yet, or we didn't recognise them. Your file isn't changed, and nothing here is deleted.
+              </p>
+              <ul className="space-y-2">
+                {unused.map((u) => (
+                  <li key={u.index} className="flex flex-wrap items-center gap-3 text-sm">
+                    <span className="font-medium text-slate-700">{u.name}</span>
+                    {u.recognisedAs ? (
+                      <span className="px-2.5 py-1 rounded-full text-xs bg-blue-50 text-nova-blue">{`Recognised as ${u.recognisedAs}, not stored yet`}</span>
+                    ) : (
+                      <span className="px-2.5 py-1 rounded-full text-xs bg-slate-100 text-slate-500">Not recognised</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {!nameMapped ? (
             <div className="bg-red-50 border border-red-200 text-red-700 rounded-2xl px-5 py-4 text-sm">Choose which column holds the product name to see a preview.</div>
@@ -226,8 +292,13 @@ export default function SmartImportPage() {
     });
   };
 
+  // Accepting a suggestion as it stands.
+  const handleMappingConfirm = (field) => {
+    setMapping((prev) => (prev[field] ? { ...prev, [field]: { ...prev[field], confident: true } } : prev));
+  };
+
   const normalized = useMemo(
-    () => (analysis && !analysis.empty && mapping.name ? applyMapping(analysis.dataRows, mapping, analysis.headerRow + 1) : null),
+    () => (analysis && !analysis.empty && !analysis.broken && mapping.name ? applyMapping(analysis.dataRows, mapping, analysis.headerRow + 1) : null),
     [analysis, mapping]
   );
 
@@ -237,6 +308,7 @@ export default function SmartImportPage() {
       analysis={analysis}
       mapping={mapping}
       onMappingChange={handleMappingChange}
+      onMappingConfirm={handleMappingConfirm}
       normalized={normalized}
       error={error}
       onFile={handleFile}
